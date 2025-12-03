@@ -12,11 +12,11 @@ WORKDIR /app/web
 COPY web/package*.json ./
 COPY web/pnpm-lock.yaml ./
 
-# 启用 corepack 并安装依赖（lockfileVersion 5.4 需要 pnpm v7）
+# 启用 corepack 并安装依赖（lockfileVersion 9.0 需要 pnpm v9+）
 # 使用缓存挂载加速 pnpm 下载
 RUN --mount=type=cache,target=/root/.local/share/pnpm/store \
     corepack enable && \
-    corepack prepare pnpm@7.33.7 --activate && \
+    corepack prepare pnpm@9.15.0 --activate && \
     pnpm install --frozen-lockfile
 
 # 复制前端源代码
@@ -45,7 +45,7 @@ WORKDIR /app
 COPY go.mod go.sum ./
 
 # 配置 Go 代理并下载依赖（使用缓存挂载加速）
-ENV GOPROXY=https://goproxy.cn,https://goproxy.io,https://proxy.golang.org,direct
+# ENV GOPROXY=https://goproxy.cn,https://goproxy.io,https://proxy.golang.org,direct
 RUN --mount=type=cache,target=/go/pkg/mod \
     go mod download
 

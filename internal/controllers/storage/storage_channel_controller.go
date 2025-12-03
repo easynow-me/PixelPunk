@@ -158,6 +158,7 @@ func ListSupportedTypes(ctx *gin.Context) {
 	allowed := map[string]bool{
 		"local":     true,
 		"s3":        true,
+		"minio":     true,
 		"oss":       true,
 		"cos":       true,
 		"qiniu":     true,
@@ -172,6 +173,7 @@ func ListSupportedTypes(ctx *gin.Context) {
 	labelMap := map[string]string{
 		"local":     "本地存储",
 		"s3":        "通用 S3",
+		"minio":     "MinIO",
 		"oss":       "阿里云 OSS",
 		"cos":       "腾讯云COS",
 		"qiniu":     "七牛云 Kodo",

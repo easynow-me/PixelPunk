@@ -12,6 +12,7 @@ export const channels = {
     qiniu: '七牛云 Kodo 节点',
     upyun: '又拍云 Upyun 节点',
     s3: '通用 S3 节点',
+    minio: 'MinIO 对象存储节点',
     rainyun: '雨云 RainYun 节点',
   },
   operations: {

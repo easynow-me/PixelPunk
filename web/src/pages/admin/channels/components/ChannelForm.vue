@@ -44,6 +44,7 @@
       qiniu: $t('admin.channels.types.qiniu'),
       upyun: $t('admin.channels.types.upyun'),
       s3: $t('admin.channels.types.s3'),
+      minio: $t('admin.channels.types.minio'),
       rainyun: $t('admin.channels.types.rainyun'),
       webdav: 'WebDAV',
       r2: 'Cloudflare R2',
@@ -54,7 +55,7 @@
     return m[t] || t
   }
 
-  const ranking = ['oss', 'cos', 'qiniu', 'upyun', 's3', 'rainyun', 'webdav', 'r2', 'azureblob', 'local', 'sftp', 'ftp']
+  const ranking = ['oss', 'cos', 'qiniu', 'upyun', 's3', 'minio', 'rainyun', 'webdav', 'r2', 'azureblob', 'local', 'sftp', 'ftp']
   const applyRanking = (opts: { label: string; value: string }[]) => {
     const order = new Map<string, number>()
     ranking.forEach((v, i) => order.set(v, i))

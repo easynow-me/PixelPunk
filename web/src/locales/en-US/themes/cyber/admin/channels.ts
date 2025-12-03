@@ -12,6 +12,7 @@ export const channels = {
     qiniu: 'Qiniu Kodo node',
     upyun: 'Upyun node',
     s3: 'Generic S3 node',
+    minio: 'MinIO node',
     rainyun: 'RainYun node',
   },
   operations: {

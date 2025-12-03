@@ -29,6 +29,9 @@ func init() {
 	// 注册 通用 S3 适配器（AWS S3 / 兼容 S3）
 	factory.RegisterGlobalAdapter("s3", adapter.NewS3Adapter)
 
+	// 注册 MinIO 适配器（使用 minio-go SDK，对非标准 S3 兼容存储有更好兼容性）
+	factory.RegisterGlobalAdapter("minio", adapter.NewMinIOAdapter)
+
 	// 注册 Azure Blob 存储适配器（原生 REST）
 	factory.RegisterGlobalAdapter("azureblob", adapter.NewAzureBlobAdapter)
 

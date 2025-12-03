@@ -9,6 +9,7 @@ export const channels = {
     qiniu: '七牛Kodo',
     upyun: '又拍云',
     s3: '汎用S3',
+    minio: 'MinIO',
     rainyun: 'RainYun',
   },
   operations: {
