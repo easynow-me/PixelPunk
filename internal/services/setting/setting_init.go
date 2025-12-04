@@ -165,4 +165,22 @@ func syncGlobalSettings() {
 	} else {
 		utils.SetAdminEmail("")
 	}
+
+	var strictFileValidationValue string
+	result = db.Table("setting").
+		Select("value").
+		Where("`key` = ? AND `group` = ?", "strict_file_validation", "upload").
+		Limit(1).
+		Scan(&strictFileValidationValue)
+
+	if result.Error == nil && result.RowsAffected > 0 {
+		var strictFileValidation bool
+		if err := json.Unmarshal([]byte(strictFileValidationValue), &strictFileValidation); err == nil {
+			utils.SetStrictFileValidation(strictFileValidation)
+		} else {
+			utils.SetStrictFileValidation(true)
+		}
+	} else {
+		utils.SetStrictFileValidation(true)
+	}
 }

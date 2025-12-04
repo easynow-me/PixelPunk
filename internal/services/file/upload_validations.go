@@ -12,6 +12,8 @@ import (
 	"pixelpunk/pkg/database"
 	"pixelpunk/pkg/errors"
 	"pixelpunk/pkg/logger"
+	"pixelpunk/pkg/storage/middleware"
+	"pixelpunk/pkg/utils"
 	"strings"
 	"time"
 
@@ -40,6 +42,13 @@ func validateUploadInput(ctx *UploadContext) error {
 
 	if !isValidFileType(fileExt) {
 		return errors.New(errors.CodeFileTypeNotSupported, "当前格式不被支持、请联系管理员解除限制！")
+	}
+
+	// 严格验证文件头，确保文件内容与扩展名匹配（根据设置决定是否启用）
+	if utils.GetStrictFileValidation() {
+		if err := middleware.ValidateSingleFile(ctx.File, nil); err != nil {
+			return errors.New(errors.CodeFileTypeNotSupported, fmt.Sprintf("文件验证失败: %s", err.Error()))
+		}
 	}
 
 	if ctx.FolderID == "null" {

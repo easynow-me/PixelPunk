@@ -510,41 +510,137 @@ func CreateChannelValidator(channelUploadLimit int64) *FileValidator {
 	return NewFileValidator(options)
 }
 
-// validateFileHeaderWithTolerance 宽松的文件头验证
+// validateFileHeaderStrict 严格的文件头验证
 func (v *FileValidator) validateFileHeaderWithTolerance(header []byte, headerSize int, ext, filename string) error {
-
 	switch ext {
 	case ".jpg", ".jpeg":
-		if headerSize >= 3 && (header[0] != 0xFF || header[1] != 0xD8 || header[2] != 0xFF) {
-			// 允许轻微的文件头差异
+		if headerSize < 3 {
+			return fmt.Errorf("文件头长度不足，无法验证JPEG格式: %s", filename)
 		}
+		if header[0] != 0xFF || header[1] != 0xD8 || header[2] != 0xFF {
+			return fmt.Errorf("无效的JPEG文件，文件头不匹配: %s", filename)
+		}
+
 	case ".png":
 		pngHeader := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
 		if headerSize < len(pngHeader) {
-			return fmt.Errorf("PNG文件头长度不足: %s", filename)
+			return fmt.Errorf("文件头长度不足，无法验证PNG格式: %s", filename)
 		}
-
-		if header[1] != 0x50 || header[2] != 0x4E || header[3] != 0x47 {
-			// 对于可能损坏的PNG，记录警告但仍允许上传，由后续处理决定
-		}
-
 		for i, expectedByte := range pngHeader {
-			if i < headerSize && header[i] != expectedByte {
+			if header[i] != expectedByte {
+				return fmt.Errorf("无效的PNG文件，文件头不匹配: %s", filename)
 			}
 		}
+
 	case ".gif":
-		if headerSize >= 6 && (string(header[:6]) != "GIF87a" && string(header[:6]) != "GIF89a") {
+		if headerSize < 6 {
+			return fmt.Errorf("文件头长度不足，无法验证GIF格式: %s", filename)
 		}
+		if string(header[:6]) != "GIF87a" && string(header[:6]) != "GIF89a" {
+			return fmt.Errorf("无效的GIF文件，文件头不匹配: %s", filename)
+		}
+
 	case ".bmp":
-		if headerSize >= 2 && (header[0] != 0x42 || header[1] != 0x4D) {
+		if headerSize < 2 {
+			return fmt.Errorf("文件头长度不足，无法验证BMP格式: %s", filename)
 		}
+		if header[0] != 0x42 || header[1] != 0x4D {
+			return fmt.Errorf("无效的BMP文件，文件头不匹配: %s", filename)
+		}
+
 	case ".webp":
-		if headerSize >= 12 && (string(header[:4]) != "RIFF" || string(header[8:12]) != "WEBP") {
+		if headerSize < 12 {
+			return fmt.Errorf("文件头长度不足，无法验证WebP格式: %s", filename)
 		}
+		if string(header[:4]) != "RIFF" || string(header[8:12]) != "WEBP" {
+			return fmt.Errorf("无效的WebP文件，文件头不匹配: %s", filename)
+		}
+
+	case ".tiff", ".tif":
+		if headerSize < 4 {
+			return fmt.Errorf("文件头长度不足，无法验证TIFF格式: %s", filename)
+		}
+		// TIFF: II (little-endian) 或 MM (big-endian) + 0x002A
+		isLittleEndian := header[0] == 0x49 && header[1] == 0x49 && header[2] == 0x2A && header[3] == 0x00
+		isBigEndian := header[0] == 0x4D && header[1] == 0x4D && header[2] == 0x00 && header[3] == 0x2A
+		if !isLittleEndian && !isBigEndian {
+			return fmt.Errorf("无效的TIFF文件，文件头不匹配: %s", filename)
+		}
+
+	case ".ico":
+		if headerSize < 4 {
+			return fmt.Errorf("文件头长度不足，无法验证ICO格式: %s", filename)
+		}
+		// ICO: 00 00 01 00
+		if header[0] != 0x00 || header[1] != 0x00 || header[2] != 0x01 || header[3] != 0x00 {
+			return fmt.Errorf("无效的ICO文件，文件头不匹配: %s", filename)
+		}
+
+	case ".heic", ".heif":
+		if headerSize < 12 {
+			return fmt.Errorf("文件头长度不足，无法验证HEIC/HEIF格式: %s", filename)
+		}
+		// HEIC/HEIF: ftyp box, 检查 "ftyp" 标识
+		ftypPos := 4
+		if headerSize >= ftypPos+4 && string(header[ftypPos:ftypPos+4]) != "ftyp" {
+			return fmt.Errorf("无效的HEIC/HEIF文件，文件头不匹配: %s", filename)
+		}
+
+	case ".svg":
+		// SVG 是文本格式，检查是否以 XML 声明或 <svg 开头
+		headerStr := string(header[:headerSize])
+		if !strings.Contains(headerStr, "<?xml") && !strings.Contains(headerStr, "<svg") {
+			return fmt.Errorf("无效的SVG文件，文件头不匹配: %s", filename)
+		}
+
+	case ".apng":
+		// APNG 与 PNG 共享相同的文件头
+		pngHeader := []byte{0x89, 0x50, 0x4E, 0x47, 0x0D, 0x0A, 0x1A, 0x0A}
+		if headerSize < len(pngHeader) {
+			return fmt.Errorf("文件头长度不足，无法验证APNG格式: %s", filename)
+		}
+		for i, expectedByte := range pngHeader {
+			if header[i] != expectedByte {
+				return fmt.Errorf("无效的APNG文件，文件头不匹配: %s", filename)
+			}
+		}
+
+	case ".jp2":
+		if headerSize < 12 {
+			return fmt.Errorf("文件头长度不足，无法验证JPEG2000格式: %s", filename)
+		}
+		// JPEG 2000: 00 00 00 0C 6A 50 20 20 0D 0A 87 0A
+		jp2Header := []byte{0x00, 0x00, 0x00, 0x0C, 0x6A, 0x50, 0x20, 0x20, 0x0D, 0x0A, 0x87, 0x0A}
+		for i, expectedByte := range jp2Header {
+			if i < headerSize && header[i] != expectedByte {
+				return fmt.Errorf("无效的JPEG2000文件，文件头不匹配: %s", filename)
+			}
+		}
+
+	case ".tga":
+		// TGA 格式没有固定的魔数，但可以检查一些基本结构
+		// 第3字节是图像类型，常见值: 1(颜色映射), 2(真彩色), 3(灰度), 9,10,11(RLE压缩)
+		if headerSize < 3 {
+			return fmt.Errorf("文件头长度不足，无法验证TGA格式: %s", filename)
+		}
+		imageType := header[2]
+		validTypes := []byte{0, 1, 2, 3, 9, 10, 11}
+		isValidType := false
+		for _, vt := range validTypes {
+			if imageType == vt {
+				isValidType = true
+				break
+			}
+		}
+		if !isValidType {
+			return fmt.Errorf("无效的TGA文件，图像类型不支持: %s", filename)
+		}
+
 	default:
+		// 对于其他格式，如果在允许列表中但没有特定验证，允许通过
+		// 但记录警告日志
 	}
 
-	// 宽松策略：只记录警告，不阻止上传
 	return nil
 }
 

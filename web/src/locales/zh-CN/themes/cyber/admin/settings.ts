@@ -553,6 +553,12 @@ export const settings = {
       enabled: '已启用秒传检测',
       disabled: '已禁用秒传检测',
     },
+    strictFileValidation: {
+      label: '严格文件验证',
+      description: '验证文件头确保内容与扩展名匹配，防止伪装文件上传',
+      enabled: '已启用严格验证',
+      disabled: '已禁用严格验证',
+    },
   },
 
   security: {

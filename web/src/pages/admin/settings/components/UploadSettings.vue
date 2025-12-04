@@ -48,6 +48,7 @@
     user_allowed_storage_durations: uploadDefaults.user_allowed_storage_durations || ['1h', '3d', '7d', '30d', 'permanent'],
     user_default_storage_duration: uploadDefaults.user_default_storage_duration || 'permanent',
     instant_upload_enabled: uploadDefaults.instant_upload_enabled ?? false,
+    strict_file_validation: uploadDefaults.strict_file_validation ?? true,
   })
 
   /* 文件格式选项（动态） */
@@ -339,6 +340,21 @@
               localSettings.instant_upload_enabled
                 ? $t('admin.settings.upload.instantUpload.enabled')
                 : $t('admin.settings.upload.instantUpload.disabled')
+            }}</span>
+          </div>
+        </SettingItem>
+
+        <SettingItem
+          :label="$t('admin.settings.upload.strictFileValidation.label')"
+          icon="shield-alt"
+          :description="$t('admin.settings.upload.strictFileValidation.description')"
+        >
+          <div class="flex items-center">
+            <CyberSwitch v-model="localSettings.strict_file_validation" />
+            <span class="text-content-content-muted ml-3 text-sm">{{
+              localSettings.strict_file_validation
+                ? $t('admin.settings.upload.strictFileValidation.enabled')
+                : $t('admin.settings.upload.strictFileValidation.disabled')
             }}</span>
           </div>
         </SettingItem>

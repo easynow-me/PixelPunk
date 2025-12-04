@@ -15,6 +15,8 @@ import (
 	"pixelpunk/pkg/database"
 	"pixelpunk/pkg/errors"
 	"pixelpunk/pkg/logger"
+	"pixelpunk/pkg/storage/middleware"
+	"pixelpunk/pkg/utils"
 )
 
 /* APIKeyUploadResult API密钥上传结果 */
@@ -129,6 +131,14 @@ func validateFiles(key *models.APIKey, files []*multipart.FileHeader) *FileValid
 		if strings.TrimSpace(file.Filename) == "" {
 			result.InvalidFiles = append(result.InvalidFiles, "无效文件名")
 			continue
+		}
+
+		// 严格验证文件头，确保文件内容与扩展名匹配（根据设置决定是否启用）
+		if utils.GetStrictFileValidation() {
+			if err := middleware.ValidateSingleFile(file, nil); err != nil {
+				result.InvalidFiles = append(result.InvalidFiles, fmt.Sprintf("%s: %s", file.Filename, err.Error()))
+				continue
+			}
 		}
 
 		result.ValidFiles = append(result.ValidFiles, file)

@@ -320,6 +320,14 @@ export const uploadDefaults: Setting[] = [
     description: '检测上传图片是否重复实现秒传',
     is_system: true,
   },
+  {
+    key: 'strict_file_validation',
+    value: true,
+    type: 'boolean',
+    group: 'upload',
+    description: '严格验证文件头（检测伪装扩展名的非图片文件）',
+    is_system: true,
+  },
 ]
 
 /* 网站建设设置 */
