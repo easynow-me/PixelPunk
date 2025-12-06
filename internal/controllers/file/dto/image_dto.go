@@ -2,12 +2,14 @@ package dto
 
 // UploadFileDTO 上传文件请求DTO
 type UploadFileDTO struct {
-	FolderID        string `form:"folder_id" json:"folder_id"`
-	FilePath        string `form:"file_path" json:"file_path"`
-	AccessLevel     string `form:"access_level" json:"access_level"`
-	Optimize        bool   `form:"optimize" json:"optimize"`
-	StorageDuration string `form:"storage_duration" json:"storage_duration"`
-	Watermark       string `form:"watermark" json:"watermark"`
+	FolderID           string `form:"folder_id" json:"folder_id"`
+	FilePath           string `form:"file_path" json:"file_path"`
+	AccessLevel        string `form:"access_level" json:"access_level"`
+	Optimize           bool   `form:"optimize" json:"optimize"`
+	StorageDuration    string `form:"storage_duration" json:"storage_duration"`
+	Watermark          string `form:"watermark" json:"watermark"`
+	WebPEnabled        *bool  `form:"webp_enabled" json:"webp_enabled"`       // WebP转换开关（nil表示使用全局配置）
+	WebPQuality        *int   `form:"webp_quality" json:"webp_quality"`       // WebP转换质量（nil表示使用全局配置）
 	// 兼容旧参数（将逐步淘汰）
 	WatermarkEnabled bool   `form:"watermark_enabled" json:"watermark_enabled"`
 	WatermarkType    string `form:"watermark_type" json:"watermark_type" binding:"omitempty,oneof=file"`
@@ -196,6 +198,8 @@ type GuestUploadDTO struct {
 	WatermarkEnabled bool   `form:"watermark_enabled" json:"watermark_enabled"`
 	WatermarkType    string `form:"watermark_type" json:"watermark_type" binding:"omitempty,oneof=file"`
 	WatermarkConfig  string `form:"watermark_config" json:"watermark_config"`
+	WebPEnabled      *bool  `form:"webp_enabled" json:"webp_enabled"`   // WebP转换开关（nil表示使用全局配置）
+	WebPQuality      *int   `form:"webp_quality" json:"webp_quality"`   // WebP转换质量（nil表示使用全局配置）
 }
 
 func (d *GuestUploadDTO) GetValidationMessages() map[string]string {

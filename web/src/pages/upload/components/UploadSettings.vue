@@ -16,6 +16,8 @@
     storageDuration?: string
     watermarkEnabled?: boolean
     watermarkConfig?: WatermarkConfigType
+    webpEnabled?: boolean
+    webpQuality?: number
   }>()
 
   const emit = defineEmits<{
@@ -26,6 +28,8 @@
     (e: 'update:storageDuration', value: string): void
     (e: 'update:watermarkEnabled', value: boolean): void
     (e: 'update:watermarkConfig', value: WatermarkConfigType): void
+    (e: 'update:webpEnabled', value: boolean): void
+    (e: 'update:webpQuality', value: number): void
     (
       e: 'change',
       settings: {
@@ -36,6 +40,8 @@
         storageDuration?: string
         watermarkEnabled: boolean
         watermarkConfig: WatermarkConfigType
+        webpEnabled?: boolean
+        webpQuality?: number
       }
     ): void
   }>()
@@ -50,24 +56,57 @@
   const localWatermarkEnabled = ref<boolean>(props.watermarkEnabled || false)
   const watermarkConfig = ref<WatermarkConfigType>(props.watermarkConfig || { ...DEFAULT_WATERMARK_CONFIG })
   const selectedFolderPath = ref<string>('')
+  const localWebpEnabled = ref<boolean>(props.webpEnabled ?? false)
+  const localWebpQuality = ref<number>(props.webpQuality ?? 80)
+  const webpInitialized = ref(false)
 
   const showWatermarkConfig = ref<boolean>(false)
+
+  const emitChangeEvent = () => {
+    emit('change', {
+      folderId: localFolder.value || undefined,
+      accessLevel: localAccessLevel.value,
+      optimize: localOptimize.value,
+      autoRemove: localAutoRemove.value,
+      storageDuration: localStorageDuration.value,
+      watermarkEnabled: localWatermarkEnabled.value,
+      watermarkConfig: watermarkConfig.value,
+      webpEnabled: localWebpEnabled.value,
+      webpQuality: localWebpQuality.value,
+    })
+  }
 
   watch(
     [globalSettings, () => authStore.isLoggedIn],
     ([newSettings, isLoggedIn]) => {
-      if (newSettings && !props.storageDuration) {
-        let defaultDuration = ''
-        if (isLoggedIn) {
-          defaultDuration = newSettings.upload?.user_default_storage_duration || 'permanent'
-        } else {
-          defaultDuration = newSettings.guest?.guest_default_storage_duration || ''
+      if (newSettings) {
+        // 处理存储时长默认值
+        if (!props.storageDuration) {
+          let defaultDuration = ''
+          if (isLoggedIn) {
+            defaultDuration = newSettings.upload?.user_default_storage_duration || 'permanent'
+          } else {
+            defaultDuration = newSettings.guest?.guest_default_storage_duration || ''
+          }
+
+          if (!localStorageDuration.value || localStorageDuration.value !== defaultDuration) {
+            localStorageDuration.value = defaultDuration
+          }
         }
 
-        if (!localStorageDuration.value || localStorageDuration.value !== defaultDuration) {
-          localStorageDuration.value = defaultDuration
-          emitChangeEvent()
+        // 处理 WebP 默认值（仅初始化一次，且需要确保 upload 设置存在）
+        if (!webpInitialized.value && newSettings.upload) {
+          const globalWebpEnabled = (newSettings.upload as any)?.webp_convert_enabled ?? false
+          const globalWebpQuality = (newSettings.upload as any)?.webp_convert_quality ?? 80
+
+          // 始终使用全局默认值初始化（因为父组件没有传递这些 props）
+          localWebpEnabled.value = globalWebpEnabled
+          localWebpQuality.value = globalWebpQuality
+
+          webpInitialized.value = true
         }
+
+        emitChangeEvent()
       }
     },
     { immediate: true }
@@ -263,21 +302,37 @@
     { deep: true }
   )
 
+  watch(localWebpEnabled, (newValue) => {
+    emit('update:webpEnabled', newValue ?? false)
+    emitChangeEvent()
+  })
+
+  watch(localWebpQuality, (newValue) => {
+    emit('update:webpQuality', newValue ?? 80)
+    emitChangeEvent()
+  })
+
+  watch(
+    () => props.webpEnabled,
+    (newValue) => {
+      if (newValue !== localWebpEnabled.value) {
+        localWebpEnabled.value = newValue
+      }
+    }
+  )
+
+  watch(
+    () => props.webpQuality,
+    (newValue) => {
+      if (newValue !== undefined && newValue !== localWebpQuality.value) {
+        localWebpQuality.value = newValue
+      }
+    }
+  )
+
   const handleFolderSelected = (folder: any) => {
     selectedFolderPath.value = folder.path
     emitChangeEvent()
-  }
-
-  const emitChangeEvent = () => {
-    emit('change', {
-      folderId: localFolder.value || undefined,
-      accessLevel: localAccessLevel.value,
-      optimize: localOptimize.value,
-      autoRemove: localAutoRemove.value,
-      storageDuration: localStorageDuration.value,
-      watermarkEnabled: localWatermarkEnabled.value,
-      watermarkConfig: watermarkConfig.value,
-    })
   }
 
   const _getPositionText = (position: string) => {
@@ -387,6 +442,26 @@
       <div class="pt-2">
         <cyberCheckbox v-model="localAutoRemove">{{ $t('upload.settings.autoRemove') }}</cyberCheckbox>
         <p class="text-muted ml-6 mt-1 text-xs">{{ $t('upload.settings.autoRemoveHint') }}</p>
+      </div>
+
+      <div class="pt-2">
+        <cyberCheckbox v-model="localWebpEnabled">{{ $t('upload.settings.webpConvert') }}</cyberCheckbox>
+        <p class="text-muted ml-6 mt-1 text-xs">{{ $t('upload.settings.webpConvertHint') }}</p>
+      </div>
+
+      <div v-if="localWebpEnabled" class="pt-2">
+        <label class="text-heading mb-1.5 block text-sm font-medium">{{ $t('upload.settings.webpQuality') }}</label>
+        <div class="flex items-center gap-3">
+          <CyberSlider
+            v-model="localWebpQuality"
+            :min="1"
+            :max="100"
+            :step="1"
+            width="100%"
+          />
+          <span class="text-muted text-sm whitespace-nowrap">{{ localWebpQuality }}%</span>
+        </div>
+        <p class="text-muted mt-1 text-xs">{{ $t('upload.settings.webpQualityHint') }}</p>
       </div>
     </div>
 

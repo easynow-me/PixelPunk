@@ -134,6 +134,9 @@ type UploadContext struct {
 	WatermarkFailureReason string      // 水印失败原因
 	OriginalFileData       []byte      // 原始文件数据（一次性读取，供多次使用）
 
+	WebPEnabled *bool // WebP转换开关（nil表示使用全局配置）
+	WebPQuality *int  // WebP转换质量（nil表示使用全局配置）
+
 	EXIFData  *models.FileEXIF // 提取的 EXIF 元数据
 	FileModel *models.File     // 文件模型（用于后续操作）
 }

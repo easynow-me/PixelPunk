@@ -31,6 +31,10 @@ export const upload = {
     autoRemove: 'アップロード成功後に自動削除',
     autoRemoveHint:
       'アップロードに成功したファイルは自動的にリストから削除され、バッチアップロード中にリストをクリーンに保つのに適しています',
+    webpConvert: 'WebP形式に変換',
+    webpConvertHint: 'アップロードした画像をWebP形式に変換して圧縮効率を向上させます。チェックを外すとグローバルデフォルト設定を使用します。',
+    webpQuality: 'WebP品質',
+    webpQualityHint: '数値が高いほど品質が良くなりますが、ファイルサイズも大きくなります（1-100）',
     duration: {
       permanent: '永続',
     },

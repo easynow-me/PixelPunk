@@ -553,6 +553,22 @@ export const settings = {
       enabled: '瞬時アップロード有効',
       disabled: '瞬時アップロード無効',
     },
+    strictFileValidation: {
+      label: '厳密なファイル検証',
+      description: 'ファイルヘッダーを検証して、拡張子が一致しないファイルを検出',
+      enabled: '厳密な検証有効',
+      disabled: '厳密な検証無効',
+    },
+    webpConvert: {
+      label: 'WebP変換',
+      description: 'アップロードされた画像をデフォルトでWebP形式に変換して圧縮効率を向上',
+      enabled: 'WebP変換有効',
+      disabled: 'WebP変換無効',
+    },
+    webpQuality: {
+      label: 'WebP品質',
+      description: 'WebP変換品質（1-100）、数値が高いほど品質が良くなりますがファイルサイズも大きくなります',
+    },
   },
 
   security: {

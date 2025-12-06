@@ -49,7 +49,7 @@ const lazyComponents: Record<string, () => Promise<any>> = {
   CyberMultiSelector: () => import('./MultiSelector'),
   CyberRadio: () => import('./Radio').then((m) => ({ default: m.Radio })),
   CyberRadioGroup: () => import('./Radio').then((m) => ({ default: m.RadioGroup })),
-  CyberSlider: () => import('./Slider').then((m) => ({ default: m.Slider })),
+  CyberSlider: () => import('./Slider'),
 
   /* 数据展示组件 */
   CyberCard: () => import('./Card'),

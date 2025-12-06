@@ -78,7 +78,7 @@ export const useSettingsStore = defineStore('settings', () => {
         }
 
         if (data.website_info?.favicon_url) {
-          FaviconManager.update(data.website_info.favicon_url)
+          FaviconManager.updateAndCache(data.website_info.favicon_url)
         }
 
         SEOManager.setSEO({

@@ -30,6 +30,10 @@ export const upload = {
     autoOptimizeHint: 'Auto compress and optimize thumbnails, reduce data unit size without significantly lowering quality',
     autoRemove: 'Auto Remove After Success',
     autoRemoveHint: 'Successfully injected data units will be automatically removed from list, suitable for keeping list clean during batch injection',
+    webpConvert: 'Convert to WebP Format',
+    webpConvertHint: 'Convert uploaded images to WebP format for better compression. Leave unchecked to use global default settings.',
+    webpQuality: 'WebP Quality',
+    webpQualityHint: 'Higher values mean better quality but larger file size (1-100)',
     duration: {
       permanent: 'Permanent',
     },

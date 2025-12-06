@@ -90,7 +90,7 @@ func Upload(c *gin.Context) {
 		wmConfig = req.WatermarkConfig
 	}
 
-	fileInfo, err := filesvc.UploadFileWithWatermark(c, userID, file, req.FolderID, req.AccessLevel, req.Optimize, req.StorageDuration, wmEnabled, wmConfig)
+	fileInfo, err := filesvc.UploadFileWithOptions(c, userID, file, req.FolderID, req.AccessLevel, req.Optimize, req.StorageDuration, wmEnabled, wmConfig, req.WebPEnabled, req.WebPQuality)
 	if err != nil {
 		errors.HandleError(c, err)
 		return
@@ -158,7 +158,7 @@ func BatchUpload(c *gin.Context) {
 		wmConfig = req.WatermarkConfig
 	}
 
-	result, err := filesvc.UploadFileBatchWithWatermark(c, userID, files, req.FolderID, req.AccessLevel, req.Optimize, req.StorageDuration, wmEnabled, wmConfig)
+	result, err := filesvc.UploadFileBatchWithOptions(c, userID, files, req.FolderID, req.AccessLevel, req.Optimize, req.StorageDuration, wmEnabled, wmConfig, req.WebPEnabled, req.WebPQuality)
 	if err != nil {
 		errors.HandleError(c, err)
 		return
@@ -226,7 +226,7 @@ func GuestUpload(c *gin.Context) {
 		wmConfig = req.WatermarkConfig
 	}
 
-	fileInfo, remainingCount, err := filesvc.GuestUploadWithWatermark(c, file, guestFolderID, req.AccessLevel, req.Optimize, req.StorageDuration, fingerprint, wmEnabled, wmConfig)
+	fileInfo, remainingCount, err := filesvc.GuestUploadWithOptions(c, file, guestFolderID, req.AccessLevel, req.Optimize, req.StorageDuration, fingerprint, wmEnabled, wmConfig, req.WebPEnabled, req.WebPQuality)
 	if err != nil {
 		logger.Error("GuestUpload: 服务层处理失败: %v", err)
 		errors.HandleError(c, err)

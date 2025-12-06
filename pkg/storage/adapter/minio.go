@@ -13,6 +13,7 @@ import (
 
 	"pixelpunk/pkg/imagex/formats"
 	"pixelpunk/pkg/imagex/iox"
+	"pixelpunk/pkg/logger"
 	"pixelpunk/pkg/storage/config"
 	"pixelpunk/pkg/storage/tenant"
 	"pixelpunk/pkg/storage/utils"
@@ -125,6 +126,7 @@ func (a *MinIOAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadR
 	processed, width, height, format := processUploadData(data, req)
 
 	originalFileName := req.FileName
+	logger.Info("[WebP调试-MinIO] 收到的FileName: %s, ProcessedData大小: %d, 检测到的format: %s", originalFileName, len(req.ProcessedData), format)
 	objectPath, err := tenant.BuildObjectKey(req.UserID, req.FolderPath, originalFileName)
 	if err != nil {
 		return nil, NewStorageError(ErrorTypeInternal, "failed to build object key", err)
@@ -160,7 +162,7 @@ func (a *MinIOAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadR
 		thumbDirectURL, _ = a.GetURL(thumbnailPath, nil)
 	}
 
-	return &UploadResult{
+	result := &UploadResult{
 		OriginalPath:   objectPath,
 		ThumbnailPath:  thumbnailPath,
 		URL:            logicalPath,
@@ -175,7 +177,9 @@ func (a *MinIOAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadR
 		Hash:           hash,
 		ContentType:    contentType,
 		Format:         format,
-	}, nil
+	}
+	logger.Info("[WebP调试-MinIO] 返回结果: URL=%s, Format=%s, objectPath=%s", result.URL, result.Format, objectPath)
+	return result, nil
 }
 
 // Delete 删除对象

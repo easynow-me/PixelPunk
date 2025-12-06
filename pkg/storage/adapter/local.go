@@ -103,6 +103,7 @@ func (a *LocalAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadR
 	}
 
 	originalFileName := req.FileName
+	logger.Info("[WebP调试-Local] 收到的FileName: %s, ProcessedData大小: %d", originalFileName, len(req.ProcessedData))
 	objectKey, err := tenant.BuildObjectKey(req.UserID, req.FolderPath, originalFileName)
 	if err != nil {
 		return nil, NewStorageError(ErrorTypeInternal, "failed to build object key", err)
@@ -112,6 +113,7 @@ func (a *LocalAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadR
 	rel := strings.TrimPrefix(objectKey, "files/")
 	fullPath := filepath.Join(a.basePath, rel)
 	logicalRelativePath := storageutils.BuildLogicalPath(req.FolderPath, originalFileName)
+	logger.Info("[WebP调试-Local] objectKey: %s, fullPath: %s, logicalRelativePath: %s", objectKey, fullPath, logicalRelativePath)
 
 	if err := os.MkdirAll(filepath.Dir(fullPath), 0755); err != nil {
 		return nil, NewStorageError(ErrorTypeInternal, "failed to create directory", err)
@@ -161,6 +163,7 @@ func (a *LocalAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadR
 	}
 	result.RemoteURL = ""
 	result.RemoteThumbURL = ""
+	logger.Info("[WebP调试-Local] 返回结果: URL=%s, Format=%s, FullPath=%s", result.URL, result.Format, result.OriginalPath)
 	return result, nil
 }
 
@@ -395,8 +398,9 @@ func (a *LocalAdapter) buildFullURL(relativePath string, isThumbnail bool) strin
 	return ""
 }
 
-// processPreProcessedImage 处理预处理过的图像数据（如水印处理后的数据）
+// processPreProcessedImage 处理预处理过的图像数据（如水印处理后的数据或 WebP 转换后的数据）
 // 只检测格式和尺寸，不进行进一步的图像处理以保持预处理效果
+// 注意：WebP 转换已在 storage_service.go 的 convertToNewStorageRequest 中完成
 func (a *LocalAdapter) processPreProcessedImage(src io.Reader, req *UploadRequest) (io.Reader, string, int, int, error) {
 	data, err := iox.ReadAllWithLimit(src, iox.DefaultMaxReadBytes)
 	if err != nil {
@@ -432,7 +436,8 @@ func (a *LocalAdapter) validateFile(req *UploadRequest) error {
 	return middleware.ValidateSingleFile(req.File, options)
 }
 
-// processImage 处理图像（先压缩，后WebP转换以避免缩略图问题）
+// processImage 处理图像（压缩等）
+// 注意：WebP 转换已在 storage_service.go 的 convertToNewStorageRequest 中完成
 func (a *LocalAdapter) processImage(src io.Reader, req *UploadRequest) (io.Reader, string, int, int, error) {
 	if req.Options == nil {
 		// 没有处理选项，直接读取原始数据
@@ -512,20 +517,7 @@ func (a *LocalAdapter) processImage(src io.Reader, req *UploadRequest) (io.Reade
 				currentData = bytes.NewReader(compressData)
 				width = compressResult.Width
 				height = compressResult.Height
-			} else {
 			}
-		} else {
-		}
-	}
-
-	if req.Options.WebPEnabled {
-		buf, _ := io.ReadAll(currentData)
-		if webpResult, err := convert.ToWebP(buf, convert.WebPOptions{Quality: req.Options.Quality}); err == nil && webpResult.Converted {
-			webpData, _ := io.ReadAll(webpResult.Reader)
-			currentData = bytes.NewReader(webpData)
-			currentFormat = "webp"
-		} else {
-			currentData = bytes.NewReader(buf)
 		}
 	}
 

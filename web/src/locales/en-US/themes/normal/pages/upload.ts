@@ -31,6 +31,10 @@ export const upload = {
     autoRemove: 'Auto Remove After Upload Success',
     autoRemoveHint:
       'Successfully uploaded files will be automatically removed from list, suitable for keeping list clean during batch uploads',
+    webpConvert: 'Convert to WebP Format',
+    webpConvertHint: 'Convert uploaded images to WebP format for better compression. Leave unchecked to use global default settings.',
+    webpQuality: 'WebP Quality',
+    webpQualityHint: 'Higher values mean better quality but larger file size (1-100)',
     duration: {
       permanent: 'Permanent',
     },

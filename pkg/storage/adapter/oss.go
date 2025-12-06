@@ -10,7 +10,6 @@ import (
 	"strings"
 
 	"pixelpunk/pkg/imagex/compress"
-	"pixelpunk/pkg/imagex/convert"
 	"pixelpunk/pkg/imagex/decode"
 	"pixelpunk/pkg/imagex/formats"
 	"pixelpunk/pkg/imagex/iox"
@@ -137,18 +136,7 @@ func (a *OSSAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadRes
 		}
 	}
 
-	if req.Options != nil && req.Options.WebPEnabled {
-		buf, _ := io.ReadAll(processedData)
-		if webpResult, err := convert.ToWebP(buf, convert.WebPOptions{Quality: req.Options.Quality}); err == nil && webpResult.Converted {
-			processedBytes, _ := io.ReadAll(webpResult.Reader)
-			processedData = bytes.NewReader(processedBytes)
-			format = "webp"
-		} else if err != nil {
-			logger.Warn("WebP转换失败，使用原格式: %v", err)
-		} else {
-			processedData = bytes.NewReader(buf)
-		}
-	}
+	// 注意：WebP 转换已在 storage_service.go 的 convertToNewStorageRequest 中完成
 
 	originalFileName := req.FileName
 	objectPath, err := tenant.BuildObjectKey(req.UserID, req.FolderPath, originalFileName)

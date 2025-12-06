@@ -297,17 +297,29 @@ func getDisplayNameWithExtension(file models.File) string {
 		displayName = file.OriginalName
 	} else if file.DisplayName != "" {
 		displayName = file.DisplayName
-		if !strings.Contains(displayName, ".") && file.Format != "" {
-			displayName += "." + strings.ToLower(file.Format)
-		}
 	} else {
-		if file.Format != "" {
-			displayName = "file." + strings.ToLower(file.Format)
+		displayName = "file"
+	}
+
+	// 移除 thumb- 前缀
+	displayName = strings.TrimPrefix(displayName, "thumb-")
+
+	// 确保扩展名与实际格式匹配（处理 WebP 转换等情况）
+	if file.Format != "" {
+		actualExt := "." + strings.ToLower(file.Format)
+		// 查找当前扩展名
+		lastDot := strings.LastIndex(displayName, ".")
+		if lastDot > 0 {
+			currentExt := strings.ToLower(displayName[lastDot:])
+			// 如果当前扩展名与实际格式不匹配，替换为实际格式
+			if currentExt != actualExt {
+				displayName = displayName[:lastDot] + actualExt
+			}
 		} else {
-			displayName = "file"
+			// 没有扩展名，添加实际格式的扩展名
+			displayName += actualExt
 		}
 	}
 
-	displayName = strings.TrimPrefix(displayName, "thumb-")
 	return url.PathEscape(displayName)
 }

@@ -2,7 +2,7 @@ package storage
 
 import (
 	"context"
-	"fmt"
+	"errors"
 	"io"
 	"path/filepath"
 	"strings"
@@ -43,7 +43,7 @@ func (p *providerImpl) GetFileURL(relativePath string, isThumb bool) (string, er
 		return p.ad.GetURL(rel, &adapter.URLOptions{IsThumbnail: isThumb})
 	}
 
-	return "", fmt.Errorf("provider_compat已废弃，请使用FileID-based新架构")
+	return "", errors.New("provider_compat已废弃，请使用FileID-based新架构")
 }
 
 func (p *providerImpl) GetRemoteContent(objectPath string, isThumb bool, userID uint) (io.ReadCloser, string, error) {

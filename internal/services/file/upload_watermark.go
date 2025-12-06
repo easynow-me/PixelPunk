@@ -60,6 +60,11 @@ func applyWatermarkToFile(ctx *UploadContext) error {
 
 /* UploadFileWithWatermark 上传单张文件（支持水印） */
 func UploadFileWithWatermark(c *gin.Context, userID uint, file *multipart.FileHeader, folderID, accessLevel string, optimize bool, storageDuration string, watermarkEnabled bool, watermarkConfig string) (*FileUploadResponse, error) {
+	return UploadFileWithOptions(c, userID, file, folderID, accessLevel, optimize, storageDuration, watermarkEnabled, watermarkConfig, nil, nil)
+}
+
+/* UploadFileWithOptions 上传单张文件（支持水印和WebP转换） */
+func UploadFileWithOptions(c *gin.Context, userID uint, file *multipart.FileHeader, folderID, accessLevel string, optimize bool, storageDuration string, watermarkEnabled bool, watermarkConfig string, webpEnabled *bool, webpQuality *int) (*FileUploadResponse, error) {
 	available, err := stats.CheckUserStorageAvailable(userID, file.Size)
 	if err != nil {
 		logger.Error("检查用户存储空间失败: %v", err)
@@ -82,6 +87,10 @@ func UploadFileWithWatermark(c *gin.Context, userID uint, file *multipart.FileHe
 		ctx.WatermarkConfig = watermarkConfig
 	}
 
+	// 设置WebP转换选项
+	ctx.WebPEnabled = webpEnabled
+	ctx.WebPQuality = webpQuality
+
 	if err := validateUploadRequest(ctx); err != nil {
 		return nil, err
 	}
@@ -100,10 +109,15 @@ func UploadFileWithWatermark(c *gin.Context, userID uint, file *multipart.FileHe
 
 /* UploadFileBatchWithWatermark 批量上传文件（支持水印） */
 func UploadFileBatchWithWatermark(c *gin.Context, userID uint, files []*multipart.FileHeader, folderID, accessLevel string, optimize bool, storageDuration string, watermarkEnabled bool, watermarkConfig string) ([]*FileUploadResponse, error) {
+	return UploadFileBatchWithOptions(c, userID, files, folderID, accessLevel, optimize, storageDuration, watermarkEnabled, watermarkConfig, nil, nil)
+}
+
+/* UploadFileBatchWithOptions 批量上传文件（支持水印和WebP转换） */
+func UploadFileBatchWithOptions(c *gin.Context, userID uint, files []*multipart.FileHeader, folderID, accessLevel string, optimize bool, storageDuration string, watermarkEnabled bool, watermarkConfig string, webpEnabled *bool, webpQuality *int) ([]*FileUploadResponse, error) {
 	results := make([]*FileUploadResponse, 0, len(files))
 
 	for _, file := range files {
-		result, err := UploadFileWithWatermark(c, userID, file, folderID, accessLevel, optimize, storageDuration, watermarkEnabled, watermarkConfig)
+		result, err := UploadFileWithOptions(c, userID, file, folderID, accessLevel, optimize, storageDuration, watermarkEnabled, watermarkConfig, webpEnabled, webpQuality)
 		if err != nil {
 			logger.Error("批量上传中单个文件失败 %s: %v", file.Filename, err)
 			continue

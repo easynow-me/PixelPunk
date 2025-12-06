@@ -559,6 +559,16 @@ export const settings = {
       enabled: '已启用严格验证',
       disabled: '已禁用严格验证',
     },
+    webpConvert: {
+      label: 'WebP转换',
+      description: '默认将上传的图片转换为WebP格式以获得更好的压缩效果',
+      enabled: '已启用WebP转换',
+      disabled: '已禁用WebP转换',
+    },
+    webpQuality: {
+      label: 'WebP质量',
+      description: 'WebP转换质量（1-100），数值越高质量越好但文件越大',
+    },
   },
 
   security: {

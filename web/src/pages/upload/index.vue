@@ -565,6 +565,8 @@
       storageDuration: settings.storageDuration,
       watermarkEnabled: settings.watermarkEnabled,
       watermarkConfig: uploadWatermarkConfig,
+      webpEnabled: settings.webpEnabled,
+      webpQuality: settings.webpQuality,
     })
 
     if (settings.storageDuration) {

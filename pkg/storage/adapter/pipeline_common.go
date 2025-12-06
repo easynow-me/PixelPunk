@@ -11,8 +11,9 @@ import (
 	"pixelpunk/pkg/storage/pipeline"
 )
 
-// processUploadData applies optional compression and WebP conversion, and returns
+// processUploadData applies optional compression and returns
 // processed bytes along with detected width/height/format.
+// 注意：WebP 转换已在 storage_service.go 的 convertToNewStorageRequest 中完成
 func processUploadData(original []byte, req *UploadRequest) (processed []byte, width int, height int, format string) {
 	processed = original
 
@@ -59,15 +60,6 @@ func processUploadData(original []byte, req *UploadRequest) (processed []byte, w
 			}
 		}
 	}
-	// optional webp
-	if req != nil && req.Options != nil && req.Options.WebPEnabled {
-		if wr, err := convert.ToWebP(processed, convert.WebPOptions{Quality: req.Options.Quality}); err == nil && wr.Converted {
-			if buf, e := io.ReadAll(wr.Reader); e == nil {
-				processed = buf
-				format = "webp"
-			}
-		}
-	}
 	return
 }
 
@@ -81,6 +73,18 @@ func replaceHEICExtension(filename string) string {
 		return filename[:len(filename)-5] + ".jpg"
 	}
 	return filename
+}
+
+// replaceExtensionWithWebP 将文件扩展名替换为 .webp
+func replaceExtensionWithWebP(filename string) string {
+	// 找到最后一个点的位置
+	for i := len(filename) - 1; i >= 0; i-- {
+		if filename[i] == '.' {
+			return filename[:i] + ".webp"
+		}
+	}
+	// 没有扩展名，直接添加
+	return filename + ".webp"
 }
 
 // buildThumbnailBytes generates a thumbnail with fallback, returning bytes and format.

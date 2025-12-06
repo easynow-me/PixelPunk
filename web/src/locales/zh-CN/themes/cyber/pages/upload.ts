@@ -30,6 +30,10 @@ export const upload = {
     autoOptimizeHint: '自动压缩和优化缩略图，减小数据单元大小而不明显降低质量',
     autoRemove: '注入成功后自动移除',
     autoRemoveHint: '注入成功的数据单元将自动从列表中移除，适合批量注入时保持列表简洁',
+    webpConvert: '转换为WebP格式',
+    webpConvertHint: '将上传的图片转换为WebP格式以获得更好的压缩效果。不勾选则使用全局默认设置。',
+    webpQuality: 'WebP质量',
+    webpQualityHint: '数值越高质量越好但文件越大（1-100）',
     duration: {
       permanent: '永久',
     },

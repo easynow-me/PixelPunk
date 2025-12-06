@@ -325,7 +325,7 @@ func (a *COSAdapter) processImage(src io.Reader, req *UploadRequest) (io.Reader,
 		}
 	}
 
-	// 注意：这里原图不进行WebP转换
+	// 注意：WebP 转换已在 storage_service.go 的 convertToNewStorageRequest 中完成
 
 	return currentData, currentFormat, width, height, nil
 }

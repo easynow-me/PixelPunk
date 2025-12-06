@@ -5,7 +5,6 @@ import (
 	"pixelpunk/internal/models"
 	filesvc "pixelpunk/internal/services/file"
 	"pixelpunk/pkg/errors"
-	"strconv"
 
 	"github.com/gin-gonic/gin"
 )
@@ -81,13 +80,9 @@ func serveFileByInfo(c *gin.Context, fileInfo models.File, isThumb bool) {
 
 			c.Header("Content-Type", proxyResp.ContentType)
 
-			if isThumb {
-				if proxyResp.ContentLength > 0 {
-					c.Header("Content-Length", strconv.FormatInt(proxyResp.ContentLength, 10))
-				}
-			} else {
-				c.Header("Content-Length", strconv.FormatInt(fileInfo.Size, 10))
-			}
+			// 注意：不设置 Content-Length，因为实际文件大小可能与数据库记录不同
+			// （例如 WebP 转换后的文件大小与原始文件不同）
+			// 让 HTTP 自动处理传输编码
 
 			c.Status(200)
 			io.Copy(c.Writer, proxyResp.Content)

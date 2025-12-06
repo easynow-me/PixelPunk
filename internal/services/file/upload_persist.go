@@ -72,7 +72,7 @@ func createFileModel(ctx *UploadContext) *models.File {
 		Width:                     ctx.Result.Width,
 		Height:                    ctx.Result.Height,
 		Ratio:                     ratio,
-		Format:                    strings.TrimPrefix(ctx.FileExt, "."),
+		Format:                    getFileFormat(ctx),
 		Mime:                      ctx.File.Header.Get("Content-Type"),
 		Resolution:                resolutionType,
 		Description:               getDescriptionFromContext(ctx),
@@ -131,4 +131,14 @@ func updateUserStats(tx *gorm.DB, ctx *UploadContext) error {
 
 func updateStatisticsAsync(ctx *UploadContext) {
 	statsChannel <- StatsEvent{Type: "file_created", UserID: ctx.UserID, FileID: ctx.FileID, Size: ctx.File.Size}
+}
+
+// getFileFormat 获取文件格式，优先使用转换后的格式（如 WebP）
+func getFileFormat(ctx *UploadContext) string {
+	// 优先使用 FileFormat（由存储层返回的实际格式，如 WebP 转换后的格式）
+	if ctx.FileFormat != "" {
+		return ctx.FileFormat
+	}
+	// 回退到原始扩展名
+	return strings.TrimPrefix(ctx.FileExt, ".")
 }

@@ -553,6 +553,22 @@ export const settings = {
       enabled: 'Instant upload enabled',
       disabled: 'Instant upload disabled',
     },
+    strictFileValidation: {
+      label: 'Strict File Validation',
+      description: 'Validate file headers to detect files with mismatched extensions',
+      enabled: 'Strict validation enabled',
+      disabled: 'Strict validation disabled',
+    },
+    webpConvert: {
+      label: 'WebP Conversion',
+      description: 'Convert uploaded images to WebP format by default for better compression',
+      enabled: 'WebP conversion enabled',
+      disabled: 'WebP conversion disabled',
+    },
+    webpQuality: {
+      label: 'WebP Quality',
+      description: 'WebP conversion quality (1-100), higher values mean better quality but larger file size',
+    },
   },
 
   security: {

@@ -114,7 +114,7 @@ func ServeFile(file models.File, isThumb bool) (interface{}, bool, bool, error) 
 	if useProxy {
 		content, contentType, err := provider.GetRemoteContent(remoteUrl, isThumb, file.UserID)
 		if err != nil {
-			logger.Error("代理模式获取内容失败: %v", err)
+			logger.Error("代理模式获取内容失败: %v, remoteUrl=%s", err, remoteUrl)
 			return nil, false, false, err
 		}
 		return &ProxyResponse{Content: content, ContentType: contentType, ContentLength: 0}, false, true, nil

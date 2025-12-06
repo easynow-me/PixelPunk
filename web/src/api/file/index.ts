@@ -16,6 +16,8 @@ export function uploadFile(
     optimize?: boolean
     storage_duration?: string
     watermark?: string
+    webp_enabled?: boolean
+    webp_quality?: number
   },
   onUploadProgress?: (progressEvent: ProgressEvent<XMLHttpRequestEventTarget>) => void,
   config?: { silent?: boolean }
@@ -35,6 +37,8 @@ export function uploadFiles(
     optimize?: boolean
     storage_duration?: string
     watermark?: string
+    webp_enabled?: boolean
+    webp_quality?: number
   },
   onUploadProgress?: (progressEvent: ProgressEvent<XMLHttpRequestEventTarget>) => void
 ): Promise<ApiResult<FileInfo[]>> {
@@ -77,6 +81,8 @@ export function guestUpload(
     storage_duration: string
     fingerprint: string
     watermark?: string
+    webp_enabled?: boolean
+    webp_quality?: number
   },
   onUploadProgress?: (progressEvent: ProgressEvent<XMLHttpRequestEventTarget>) => void
 ): Promise<

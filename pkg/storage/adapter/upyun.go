@@ -18,7 +18,6 @@ import (
 	"time"
 
 	"pixelpunk/pkg/imagex/compress"
-	"pixelpunk/pkg/imagex/convert"
 	"pixelpunk/pkg/imagex/decode"
 	"pixelpunk/pkg/imagex/formats"
 	"pixelpunk/pkg/imagex/iox"
@@ -138,14 +137,7 @@ func (a *UpyunAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadR
 			}
 		}
 	}
-	if req.Options != nil && req.Options.WebPEnabled {
-		if wr, err := convert.ToWebP(processed, convert.WebPOptions{Quality: req.Options.Quality}); err == nil && wr.Converted {
-			if buf, e := io.ReadAll(wr.Reader); e == nil {
-				processed = buf
-				format = "webp"
-			}
-		}
-	}
+	// 注意：WebP 转换已在 storage_service.go 的 convertToNewStorageRequest 中完成
 
 	objectKey, err := tenant.BuildObjectKey(req.UserID, req.FolderPath, req.FileName)
 	if err != nil {

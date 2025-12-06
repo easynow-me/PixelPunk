@@ -45,4 +45,6 @@ export interface GlobalUploadOptions {
   storageDuration?: string
   watermarkEnabled?: boolean
   watermarkConfig?: any
+  webpEnabled?: boolean
+  webpQuality?: number
 }

@@ -169,6 +169,11 @@ func GuestUpload(c *gin.Context, file *multipart.FileHeader, folderID, accessLev
 
 /* GuestUploadWithWatermark 游客上传文件（支持水印） */
 func GuestUploadWithWatermark(c *gin.Context, file *multipart.FileHeader, folderID, accessLevel string, optimize bool, storageDuration string, fingerprint string, watermarkEnabled bool, watermarkConfig string) (*FileUploadResponse, int, error) {
+	return GuestUploadWithOptions(c, file, folderID, accessLevel, optimize, storageDuration, fingerprint, watermarkEnabled, watermarkConfig, nil, nil)
+}
+
+/* GuestUploadWithOptions 游客上传文件（支持水印和WebP转换） */
+func GuestUploadWithOptions(c *gin.Context, file *multipart.FileHeader, folderID, accessLevel string, optimize bool, storageDuration string, fingerprint string, watermarkEnabled bool, watermarkConfig string, webpEnabled *bool, webpQuality *int) (*FileUploadResponse, int, error) {
 
 	remainingCount := 10 // 默认剩余次数
 
@@ -180,6 +185,10 @@ func GuestUploadWithWatermark(c *gin.Context, file *multipart.FileHeader, folder
 		ctx.WatermarkEnabled = watermarkEnabled
 		ctx.WatermarkConfig = watermarkConfig
 	}
+
+	// 设置WebP转换选项
+	ctx.WebPEnabled = webpEnabled
+	ctx.WebPQuality = webpQuality
 
 	if err := validateUploadRequest(ctx); err != nil {
 		return nil, remainingCount, err

@@ -183,4 +183,42 @@ func syncGlobalSettings() {
 	} else {
 		utils.SetStrictFileValidation(true)
 	}
+
+	// WebP转换功能开关
+	var webpConvertEnabledValue string
+	result = db.Table("setting").
+		Select("value").
+		Where("`key` = ? AND `group` = ?", "webp_convert_enabled", "upload").
+		Limit(1).
+		Scan(&webpConvertEnabledValue)
+
+	if result.Error == nil && result.RowsAffected > 0 {
+		var webpConvertEnabled bool
+		if err := json.Unmarshal([]byte(webpConvertEnabledValue), &webpConvertEnabled); err == nil {
+			utils.SetWebPConvertEnabled(webpConvertEnabled)
+		} else {
+			utils.SetWebPConvertEnabled(false)
+		}
+	} else {
+		utils.SetWebPConvertEnabled(false)
+	}
+
+	// WebP转换质量
+	var webpConvertQualityValue string
+	result = db.Table("setting").
+		Select("value").
+		Where("`key` = ? AND `group` = ?", "webp_convert_quality", "upload").
+		Limit(1).
+		Scan(&webpConvertQualityValue)
+
+	if result.Error == nil && result.RowsAffected > 0 {
+		var webpConvertQuality int
+		if err := json.Unmarshal([]byte(webpConvertQualityValue), &webpConvertQuality); err == nil {
+			utils.SetWebPConvertQuality(webpConvertQuality)
+		} else {
+			utils.SetWebPConvertQuality(80)
+		}
+	} else {
+		utils.SetWebPConvertQuality(80)
+	}
 }

@@ -328,6 +328,22 @@ export const uploadDefaults: Setting[] = [
     description: '严格验证文件头（检测伪装扩展名的非图片文件）',
     is_system: true,
   },
+  {
+    key: 'webp_convert_enabled',
+    value: false,
+    type: 'boolean',
+    group: 'upload',
+    description: '是否默认将上传的图片转换为WebP格式',
+    is_system: true,
+  },
+  {
+    key: 'webp_convert_quality',
+    value: 80,
+    type: 'number',
+    group: 'upload',
+    description: 'WebP转换质量(1-100)',
+    is_system: true,
+  },
 ]
 
 /* 网站建设设置 */

@@ -42,6 +42,8 @@ export async function uploadRegularFile(item: UploadItem) {
           optimize: globalOptions.value.optimize,
           storage_duration: globalOptions.value.storageDuration || '7d',
           fingerprint: generateFingerprint(),
+          webp_enabled: globalOptions.value.webpEnabled,
+          webp_quality: globalOptions.value.webpQuality,
           ...watermarkConfig,
         },
         (progressEvent) => {
@@ -98,6 +100,8 @@ export async function uploadRegularFile(item: UploadItem) {
           access_level: globalOptions.value.accessLevel,
           optimize: globalOptions.value.optimize,
           storage_duration: globalOptions.value.storageDuration,
+          webp_enabled: globalOptions.value.webpEnabled,
+          webp_quality: globalOptions.value.webpQuality,
           ...watermarkConfig,
         },
         (progressEvent) => {

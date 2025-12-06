@@ -19,15 +19,34 @@
   const emit = defineEmits<SliderEmits>()
 
   const localValue = computed({
-    get: () => props.modelValue,
+    get: () => props.modelValue ?? props.min,
     set: (value) => emit('update:modelValue', parseFloat(value as unknown as string)),
+  })
+
+  // 计算进度百分比用于渐变轨道
+  const progressPercent = computed(() => {
+    const min = props.min
+    const max = props.max
+    const value = localValue.value
+    return ((value - min) / (max - min)) * 100
   })
 </script>
 
 <template>
   <div class="cyber-slider-wrapper" :style="{ width: props.width }">
     <div class="flex items-center">
-      <input v-model="localValue" type="range" :min="min" :max="max" :step="step" :disabled="disabled" class="cyber-slider" />
+      <input
+        v-model="localValue"
+        type="range"
+        :min="min"
+        :max="max"
+        :step="step"
+        :disabled="disabled"
+        class="cyber-slider"
+        :style="{
+          background: `linear-gradient(to right, rgba(var(--color-brand-500-rgb), 0.6) 0%, rgba(var(--color-brand-500-rgb), 0.6) ${progressPercent}%, rgba(var(--color-brand-500-rgb), 0.1) ${progressPercent}%, rgba(var(--color-brand-500-rgb), 0.1) 100%)`,
+        }"
+      />
       <span v-if="showValue" class="cyber-slider-value">{{ localValue }}</span>
     </div>
     <p v-if="description" class="cyber-slider-description">{{ description }}</p>
@@ -53,7 +72,6 @@
     @apply w-full rounded-md outline-none transition-all duration-300;
     -webkit-appearance: none;
     height: 6px;
-    background: rgba(var(--color-brand-500-rgb), 0.1);
   }
 
   .cyber-slider::-webkit-slider-thumb {

@@ -49,6 +49,8 @@
     user_default_storage_duration: uploadDefaults.user_default_storage_duration || 'permanent',
     instant_upload_enabled: uploadDefaults.instant_upload_enabled ?? false,
     strict_file_validation: uploadDefaults.strict_file_validation ?? true,
+    webp_convert_enabled: uploadDefaults.webp_convert_enabled ?? false,
+    webp_convert_quality: uploadDefaults.webp_convert_quality || 80,
   })
 
   /* 文件格式选项（动态） */
@@ -356,6 +358,39 @@
                 ? $t('admin.settings.upload.strictFileValidation.enabled')
                 : $t('admin.settings.upload.strictFileValidation.disabled')
             }}</span>
+          </div>
+        </SettingItem>
+
+        <SettingItem
+          :label="$t('admin.settings.upload.webpConvert.label')"
+          icon="image"
+          :description="$t('admin.settings.upload.webpConvert.description')"
+        >
+          <div class="flex items-center">
+            <CyberSwitch v-model="localSettings.webp_convert_enabled" />
+            <span class="text-content-content-muted ml-3 text-sm">{{
+              localSettings.webp_convert_enabled
+                ? $t('admin.settings.upload.webpConvert.enabled')
+                : $t('admin.settings.upload.webpConvert.disabled')
+            }}</span>
+          </div>
+        </SettingItem>
+
+        <SettingItem
+          :label="$t('admin.settings.upload.webpQuality.label')"
+          icon="sliders-h"
+          :description="$t('admin.settings.upload.webpQuality.description')"
+        >
+          <div class="flex items-center">
+            <CyberSlider
+              v-model="localSettings.webp_convert_quality"
+              :min="1"
+              :max="100"
+              :step="1"
+              width="460px"
+              :disabled="!localSettings.webp_convert_enabled"
+            />
+            <span class="text-content-content-muted ml-3 text-sm">{{ localSettings.webp_convert_quality }}%</span>
           </div>
         </SettingItem>
       </div>
