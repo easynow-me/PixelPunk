@@ -388,6 +388,7 @@ func autoMigrate() error {
 		&models.AIJob{},
 		&models.VectorJob{},
 		&models.Announcement{},
+		&models.FileEXIF{},
 	}
 
 	silentDB := DB.Session(&gorm.Session{Logger: logger.Default.LogMode(logger.Silent)})

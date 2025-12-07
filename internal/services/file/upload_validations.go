@@ -46,7 +46,10 @@ func validateUploadInput(ctx *UploadContext) error {
 
 	// 严格验证文件头，确保文件内容与扩展名匹配（根据设置决定是否启用）
 	if utils.GetStrictFileValidation() {
-		if err := middleware.ValidateSingleFile(ctx.File, nil); err != nil {
+		validationOpts := &middleware.ValidationOptions{
+			MaxFileSize: maxFileSize, // 使用从设置读取的文件大小限制
+		}
+		if err := middleware.ValidateSingleFile(ctx.File, validationOpts); err != nil {
 			return errors.New(errors.CodeFileTypeNotSupported, fmt.Sprintf("文件验证失败: %s", err.Error()))
 		}
 	}

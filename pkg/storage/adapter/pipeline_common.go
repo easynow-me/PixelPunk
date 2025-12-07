@@ -106,3 +106,19 @@ func buildThumbnailBytes(source []byte, req *UploadRequest) (thumbBytes []byte, 
 	tb, tf, _ := pipeline.GenerateOrFallback(source, pipeline.Options{Width: tw, Height: th, Quality: tq, EnableWebP: true, FallbackOnError: true})
 	return tb, tf
 }
+
+// getThumbnailData 获取缩略图数据：优先使用预生成的缩略图，否则从源数据生成
+// 返回缩略图数据、格式和错误信息（如果生成失败）
+func getThumbnailData(req *UploadRequest, sourceData []byte) (thumbBytes []byte, thumbFormat string, err error) {
+	// 优先使用预生成的缩略图数据
+	if len(req.ThumbnailData) > 0 && req.ThumbnailFormat != "" {
+		return req.ThumbnailData, req.ThumbnailFormat, nil
+	}
+
+	// 没有预生成的缩略图，使用传统方式生成
+	thumbBytes, thumbFormat = buildThumbnailBytes(sourceData, req)
+	if len(thumbBytes) == 0 {
+		return nil, "", nil // 生成失败但不是错误
+	}
+	return thumbBytes, thumbFormat, nil
+}

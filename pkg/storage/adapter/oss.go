@@ -15,7 +15,6 @@ import (
 	"pixelpunk/pkg/imagex/iox"
 	"pixelpunk/pkg/logger"
 	"pixelpunk/pkg/storage/config"
-	"pixelpunk/pkg/storage/pipeline"
 	"pixelpunk/pkg/storage/tenant"
 	"pixelpunk/pkg/storage/utils"
 
@@ -156,21 +155,22 @@ func (a *OSSAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadRes
 
 	var thumbnailPath string
 	var thumbnailURL string
+	var thumbnailErr error
 
 	if req.Options != nil && req.Options.GenerateThumb {
-		thumbPath, _, _, err := a.generateThumbnail(bytes.NewReader(data), req, objectPath)
-		if err != nil {
-			logger.Warn("缩略图生成失败: %v", err)
-		} else {
-			thumbnailPath = thumbPath
-			// 缩略图使用逻辑路径，格式与原图一致，添加_thumb后缀
-			// 获取缩略图的实际格式（从生成的缩略图路径推断）
-			thumbFormat := "jpg" // 默认格式
-			if ext := filepath.Ext(thumbPath); ext != "" {
-				thumbFormat = strings.TrimPrefix(strings.ToLower(ext), ".")
+		// 使用 getThumbnailData 获取缩略图数据（优先使用预生成的，否则自动生成）
+		thumbBytes, thumbFormat, _ := getThumbnailData(req, data)
+		if len(thumbBytes) > 0 {
+			thumbFileName := utils.MakeThumbName(originalFileName, thumbFormat)
+			thumbObjectPath, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbFileName)
+
+			_, thumbnailErr = a.uploadToOSS(thumbBytes, thumbObjectPath, formats.GetContentType(thumbFormat))
+			if thumbnailErr == nil {
+				thumbnailPath = thumbObjectPath
+				thumbnailURL = utils.BuildLogicalPath(req.FolderPath, thumbFileName)
+			} else {
+				logger.Warn("[OSS] 缩略图上传失败: %v", thumbnailErr)
 			}
-			thumbLogicalName := utils.MakeThumbName(originalFileName, thumbFormat)
-			thumbnailURL = utils.BuildLogicalPath(req.FolderPath, thumbLogicalName)
 		}
 	}
 
@@ -197,6 +197,13 @@ func (a *OSSAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadRes
 		Hash:           hash,
 		ContentType:    a.getContentType(format),
 		Format:         format,
+		ThumbnailGenerationFailed: thumbnailErr != nil,
+		ThumbnailFailureReason: func() string {
+			if thumbnailErr != nil {
+				return thumbnailErr.Error()
+			}
+			return ""
+		}(),
 	}
 
 	return result, nil
@@ -367,68 +374,6 @@ func (a *OSSAdapter) uploadToOSS(dataBytes []byte, objectPath, contentType strin
 	}, nil
 }
 
-// generateThumbnail 生成缩略图 (与COS保持一致)
-func (a *OSSAdapter) generateThumbnail(src io.Reader, req *UploadRequest, originalPath string) (string, string, string, error) {
-	// 重新打开源文件进行缩略图处理
-	srcFile, err := req.File.Open()
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to reopen source file: %w", err)
-	}
-	defer srcFile.Close()
-
-	data, err := io.ReadAll(srcFile)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to read source data: %w", err)
-	}
-
-	// SVG 特判：直接拷贝为缩略图
-	if strings.EqualFold(strings.TrimPrefix(strings.ToLower(filepath.Ext(req.FileName)), "."), "svg") {
-		thumbFileName := utils.MakeThumbName(req.FileName, "svg")
-		thumbObjectPath, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbFileName)
-		uploadResult, err := a.uploadToOSS(data, thumbObjectPath, "image/svg+xml")
-		if err != nil {
-			return "", "", "", fmt.Errorf("failed to upload thumbnail: %w", err)
-		}
-		thumbURL := thumbObjectPath
-		return thumbObjectPath, thumbURL, uploadResult.URL, nil
-	}
-
-	// 统一生成缩略图（带回退）
-	q := 85
-	if req.Options.ThumbQuality > 0 {
-		q = req.Options.ThumbQuality
-	}
-	w := max(1, coalesceInt(req.Options.ThumbWidth, 1200))
-	h := max(1, coalesceInt(req.Options.ThumbHeight, 900))
-	thumbBytes, thumbFormat, _ := pipeline.GenerateOrFallback(data, pipeline.Options{
-		Width: w, Height: h, Quality: q, EnableWebP: true, FallbackOnError: true,
-	})
-
-	thumbFileName := utils.MakeThumbName(req.FileName, thumbFormat)
-	thumbObjectPath, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbFileName)
-
-	uploadResult, err := a.uploadToOSS(thumbBytes, thumbObjectPath, formats.GetContentType(thumbFormat))
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to upload thumbnail: %w", err)
-	}
-	thumbURL := thumbObjectPath
-	return thumbObjectPath, thumbURL, uploadResult.URL, nil
-}
-
-// removed mustReadAll: no longer needed
-
-func coalesceInt(v int, def int) int {
-	if v > 0 {
-		return v
-	}
-	return def
-}
-func max(a, b int) int {
-	if a > b {
-		return a
-	}
-	return b
-}
 
 // getFileFormat 根据文件名获取格式（返回去点小写扩展名；未知返回 unknown）
 func (a *OSSAdapter) getFileFormat(fileName string) string {

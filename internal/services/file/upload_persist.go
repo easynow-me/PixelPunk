@@ -18,7 +18,9 @@ func createFileModel(ctx *UploadContext) *models.File {
 	if ctx.Result.Height > 0 {
 		ratio = float64(ctx.Result.Width) / float64(ctx.Result.Height)
 	}
-	sizeFormatted := formatFileSize(ctx.File.Size)
+	// 使用实际存储的文件大小（转换后的大小），如果未设置则回退到原始大小
+	actualSize := getActualFileSize(ctx)
+	sizeFormatted := formatFileSize(actualSize)
 	resolutionType := func(width, height int) string {
 		pixels := width * height
 		switch {
@@ -67,7 +69,7 @@ func createFileModel(ctx *UploadContext) *models.File {
 		RemoteURL:                 ctx.Result.RemoteUrl,
 		RemoteThumbURL:            ctx.Result.RemoteThumbUrl,
 		MD5Hash:                   ctx.FileHash,
-		Size:                      ctx.File.Size,
+		Size:                      actualSize,
 		SizeFormatted:             sizeFormatted,
 		Width:                     ctx.Result.Width,
 		Height:                    ctx.Result.Height,
@@ -126,11 +128,23 @@ func saveFileRecord(tx *gorm.DB, file *models.File) error {
 }
 
 func updateUserStats(tx *gorm.DB, ctx *UploadContext) error {
-	return user.UpdateFileUploadStats(tx, ctx.UserID, ctx.File.Size)
+	// 使用实际存储的文件大小（转换后的大小）
+	actualSize := getActualFileSize(ctx)
+	return user.UpdateFileUploadStats(tx, ctx.UserID, actualSize)
 }
 
 func updateStatisticsAsync(ctx *UploadContext) {
-	statsChannel <- StatsEvent{Type: "file_created", UserID: ctx.UserID, FileID: ctx.FileID, Size: ctx.File.Size}
+	// 使用实际存储的文件大小（转换后的大小）
+	actualSize := getActualFileSize(ctx)
+	statsChannel <- StatsEvent{Type: "file_created", UserID: ctx.UserID, FileID: ctx.FileID, Size: actualSize}
+}
+
+// getActualFileSize 获取实际存储的文件大小（转换后的大小），如果未设置则回退到原始大小
+func getActualFileSize(ctx *UploadContext) int64 {
+	if ctx.FileSize > 0 {
+		return ctx.FileSize
+	}
+	return ctx.File.Size
 }
 
 // getFileFormat 获取文件格式，优先使用转换后的格式（如 WebP）

@@ -62,6 +62,9 @@ type UploadRequest struct {
 	ThumbQuality  int                   // 缩略图质量 (1-100)
 	Compress      bool                  // 是否压缩
 	WebPEnabled   bool                  // 是否启用WebP转换
+	// 预生成的缩略图数据（由外部统一生成，适配器只负责上传）
+	ThumbnailData   []byte // 缩略图数据
+	ThumbnailFormat string // 缩略图格式 (jpg, png, webp)
 }
 
 // UploadResult 上传结果
@@ -106,12 +109,14 @@ func (s *Storage) Upload(ctx context.Context, req *UploadRequest) (*UploadResult
 	}
 
 	adapterReq := &adapter.UploadRequest{
-		File:          req.File,
-		ProcessedData: req.ProcessedData, // 传递预处理后的数据
-		UserID:        req.UserID,
-		FolderPath:    req.FolderPath,
-		FileName:      fileName,
-		ContentType:   req.ContentType,
+		File:            req.File,
+		ProcessedData:   req.ProcessedData, // 传递预处理后的数据
+		UserID:          req.UserID,
+		FolderPath:      req.FolderPath,
+		FileName:        fileName,
+		ContentType:     req.ContentType,
+		ThumbnailData:   req.ThumbnailData,   // 传递预生成的缩略图数据
+		ThumbnailFormat: req.ThumbnailFormat, // 传递缩略图格式
 		Options: &adapter.UploadOptions{
 			Quality:       req.Quality,
 			MaxWidth:      req.MaxWidth,

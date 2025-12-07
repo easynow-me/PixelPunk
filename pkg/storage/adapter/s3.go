@@ -6,12 +6,12 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 	"time"
 
 	"pixelpunk/pkg/imagex/formats"
 	"pixelpunk/pkg/imagex/iox"
+	"pixelpunk/pkg/logger"
 	"pixelpunk/pkg/storage/config"
 	"pixelpunk/pkg/storage/tenant"
 	"pixelpunk/pkg/storage/utils"
@@ -131,14 +131,31 @@ func (a *S3Adapter) Upload(ctx context.Context, req *UploadRequest) (*UploadResu
 	}
 
 	var thumbnailPath, thumbnailURL string
+	var thumbnailErr error
 	if req.Options != nil && req.Options.GenerateThumb {
-		if tpath, _, _, err := a.generateThumbnail(bytes.NewReader(data), req, objectPath); err == nil {
-			thumbnailPath = tpath
-			tf := "jpg"
-			if ext := filepath.Ext(tpath); ext != "" {
-				tf = strings.TrimPrefix(strings.ToLower(ext), ".")
+		// 使用 getThumbnailData 获取缩略图数据（优先使用预生成的，否则自动生成）
+		thumbBytes, thumbFormat, _ := getThumbnailData(req, data)
+		if len(thumbBytes) > 0 {
+			thumbFileName := utils.MakeThumbName(originalFileName, thumbFormat)
+			thumbObjectPath, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbFileName)
+
+			thumbPut := &s3.PutObjectInput{
+				Bucket:      aws.String(a.bucket),
+				Key:         aws.String(thumbObjectPath),
+				Body:        bytes.NewReader(thumbBytes),
+				ContentType: aws.String(formats.GetContentType(thumbFormat)),
 			}
-			thumbnailURL = utils.BuildLogicalPath(req.FolderPath, utils.MakeThumbName(originalFileName, tf))
+			if acl, ok := s3MapACL(a.accessControl); ok {
+				thumbPut.ACL = acl
+			}
+
+			_, thumbnailErr = a.client.PutObject(ctx, thumbPut)
+			if thumbnailErr == nil {
+				thumbnailPath = thumbObjectPath
+				thumbnailURL = utils.BuildLogicalPath(req.FolderPath, thumbFileName)
+			} else {
+				logger.Warn("[S3] 缩略图上传失败: %v", thumbnailErr)
+			}
 		}
 	}
 
@@ -149,20 +166,27 @@ func (a *S3Adapter) Upload(ctx context.Context, req *UploadRequest) (*UploadResu
 		thumbDirectURL, _ = a.GetURL(thumbnailPath, nil)
 	}
 	return &UploadResult{
-		OriginalPath:   objectPath,
-		ThumbnailPath:  thumbnailPath,
-		URL:            logicalPath,
-		ThumbnailURL:   thumbnailURL,
-		FullURL:        direct,
-		FullThumbURL:   thumbDirectURL,
-		RemoteURL:      objectPath,
-		RemoteThumbURL: thumbnailPath,
-		Size:           int64(len(processed)),
-		Width:          width,
-		Height:         height,
-		Hash:           hash,
-		ContentType:    a.getContentType(format),
-		Format:         format,
+		OriginalPath:              objectPath,
+		ThumbnailPath:             thumbnailPath,
+		URL:                       logicalPath,
+		ThumbnailURL:              thumbnailURL,
+		FullURL:                   direct,
+		FullThumbURL:              thumbDirectURL,
+		RemoteURL:                 objectPath,
+		RemoteThumbURL:            thumbnailPath,
+		Size:                      int64(len(processed)),
+		Width:                     width,
+		Height:                    height,
+		Hash:                      hash,
+		ContentType:               a.getContentType(format),
+		Format:                    format,
+		ThumbnailGenerationFailed: thumbnailErr != nil,
+		ThumbnailFailureReason: func() string {
+			if thumbnailErr != nil {
+				return thumbnailErr.Error()
+			}
+			return ""
+		}(),
 	}, nil
 }
 
@@ -261,31 +285,6 @@ func (a *S3Adapter) Exists(ctx context.Context, path string) (bool, error) {
 		return false, nil
 	}
 	return true, nil
-}
-
-// generateThumbnail 生成缩略图
-func (a *S3Adapter) generateThumbnail(src io.Reader, req *UploadRequest, originalPath string) (string, string, string, error) {
-	srcFile, err := req.File.Open()
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to reopen source file: %w", err)
-	}
-	defer srcFile.Close()
-	data, err := iox.ReadAllWithLimit(srcFile, iox.DefaultMaxReadBytes)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to read source data: %w", err)
-	}
-	thumbBytes, thumbFormat := buildThumbnailBytes(data, req)
-	thumbFileName := utils.MakeThumbName(filepath.Base(originalPath), thumbFormat)
-	thumbObjectPath, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbFileName)
-	put := &s3.PutObjectInput{Bucket: aws.String(a.bucket), Key: aws.String(thumbObjectPath), Body: bytes.NewReader(thumbBytes), ContentType: aws.String(formats.GetContentType(thumbFormat))}
-	if acl, ok := s3MapACL(a.accessControl); ok {
-		put.ACL = acl
-	}
-	if _, err := a.client.PutObject(context.Background(), put); err != nil {
-		return "", "", "", fmt.Errorf("failed to upload thumbnail: %w", err)
-	}
-	url, _ := a.GetURL(thumbObjectPath, nil)
-	return thumbObjectPath, url, url, nil
 }
 
 func (a *S3Adapter) GetCapabilities() Capabilities {

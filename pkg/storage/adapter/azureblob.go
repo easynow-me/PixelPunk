@@ -103,15 +103,19 @@ func (a *AzureBlobAdapter) Upload(ctx context.Context, req *UploadRequest) (*Upl
 	}
 
 	var thumbPath, thumbLogical, thumbDirect string
+	var thumbnailErr error
 	if req.Options != nil && req.Options.GenerateThumb {
-		tb, tf := buildThumbnailBytes(original, req)
-		thumbName := utils.MakeThumbName(req.FileName, tf)
-		thumbObject, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbName)
-		if err := a.putBlob(ctx, a.container, thumbObject, tb, formats.GetContentType(tf)); err == nil {
-			thumbPath = thumbObject
-			thumbLogical = utils.BuildLogicalPath(req.FolderPath, thumbName)
-			if u, _ := a.GetURL(thumbObject, nil); u != "" {
-				thumbDirect = u
+		// 使用 getThumbnailData 获取缩略图数据（优先使用预生成的，否则自动生成）
+		tb, tf, _ := getThumbnailData(req, original)
+		if len(tb) > 0 {
+			thumbName := utils.MakeThumbName(req.FileName, tf)
+			thumbObject, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbName)
+			if thumbnailErr = a.putBlob(ctx, a.container, thumbObject, tb, formats.GetContentType(tf)); thumbnailErr == nil {
+				thumbPath = thumbObject
+				thumbLogical = utils.BuildLogicalPath(req.FolderPath, thumbName)
+				if u, _ := a.GetURL(thumbObject, nil); u != "" {
+					thumbDirect = u
+				}
 			}
 		}
 	}
@@ -133,6 +137,13 @@ func (a *AzureBlobAdapter) Upload(ctx context.Context, req *UploadRequest) (*Upl
 		Hash:           fmt.Sprintf("%x", sum),
 		ContentType:    a.getContentType(format),
 		Format:         format,
+		ThumbnailGenerationFailed: thumbnailErr != nil,
+		ThumbnailFailureReason: func() string {
+			if thumbnailErr != nil {
+				return thumbnailErr.Error()
+			}
+			return ""
+		}(),
 	}, nil
 }
 

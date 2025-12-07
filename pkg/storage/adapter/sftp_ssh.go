@@ -96,19 +96,23 @@ func (a *SFTPAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadRe
 	}
 
 	var thumbPath, thumbLogical, thumbDirect string
+	var thumbnailErr error
 	if req.Options != nil && req.Options.GenerateThumb {
-		tb, tf := buildThumbnailBytes(original, req)
-		thumbName := utils.MakeThumbName(req.FileName, tf)
-		thumbKey, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbName)
-		tRemote := a.fullPath(thumbKey)
-		if a.mkdir {
-			_ = a.sshMkdirP(ctx, path.Dir(tRemote))
-		}
-		if err := a.sshWriteFile(ctx, tRemote, tb); err == nil {
-			thumbPath = thumbKey
-			thumbLogical = utils.BuildLogicalPath(req.FolderPath, thumbName)
-			if u, _ := a.GetURL(thumbKey, nil); u != "" {
-				thumbDirect = u
+		// 使用 getThumbnailData 获取缩略图数据（优先使用预生成的，否则自动生成）
+		tb, tf, _ := getThumbnailData(req, original)
+		if len(tb) > 0 {
+			thumbName := utils.MakeThumbName(req.FileName, tf)
+			thumbKey, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbName)
+			tRemote := a.fullPath(thumbKey)
+			if a.mkdir {
+				_ = a.sshMkdirP(ctx, path.Dir(tRemote))
+			}
+			if thumbnailErr = a.sshWriteFile(ctx, tRemote, tb); thumbnailErr == nil {
+				thumbPath = thumbKey
+				thumbLogical = utils.BuildLogicalPath(req.FolderPath, thumbName)
+				if u, _ := a.GetURL(thumbKey, nil); u != "" {
+					thumbDirect = u
+				}
 			}
 		}
 	}
@@ -130,6 +134,13 @@ func (a *SFTPAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadRe
 		Hash:           fmt.Sprintf("%x", sum),
 		ContentType:    formats.GetContentType(format),
 		Format:         format,
+		ThumbnailGenerationFailed: thumbnailErr != nil,
+		ThumbnailFailureReason: func() string {
+			if thumbnailErr != nil {
+				return thumbnailErr.Error()
+			}
+			return ""
+		}(),
 	}, nil
 }
 

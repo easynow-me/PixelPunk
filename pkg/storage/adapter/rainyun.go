@@ -6,7 +6,6 @@ import (
 	"crypto/md5"
 	"fmt"
 	"io"
-	"path/filepath"
 	"strings"
 	"time"
 
@@ -128,18 +127,22 @@ func (a *RainyunAdapter) Upload(ctx context.Context, req *UploadRequest) (*Uploa
 
 	var thumbnailPath string
 	var thumbnailURL string
+	var thumbnailErr error
 
 	if req.Options != nil && req.Options.GenerateThumb {
-		thumbPath, _, _, err := a.generateThumbnail(bytes.NewReader(data), req, objectPath)
-		if err != nil {
-		} else {
-			thumbnailPath = thumbPath
-			thumbFormat := "jpg"
-			if ext := filepath.Ext(thumbPath); ext != "" {
-				thumbFormat = strings.TrimPrefix(strings.ToLower(ext), ".")
+		// 使用 getThumbnailData 获取缩略图数据（优先使用预生成的，否则自动生成）
+		thumbBytes, thumbFormat, _ := getThumbnailData(req, data)
+		if len(thumbBytes) > 0 {
+			thumbFileName := utils.MakeThumbName(originalFileName, thumbFormat)
+			thumbObjectPath, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbFileName)
+
+			_, thumbnailErr = a.uploadToRainyun(thumbBytes, thumbObjectPath, formats.GetContentType(thumbFormat))
+			if thumbnailErr == nil {
+				thumbnailPath = thumbObjectPath
+				thumbnailURL = utils.BuildLogicalPath(req.FolderPath, thumbFileName)
+			} else {
+				logger.Warn("[Rainyun] 缩略图上传失败: %v", thumbnailErr)
 			}
-			thumbLogicalName := utils.MakeThumbName(originalFileName, thumbFormat)
-			thumbnailURL = utils.BuildLogicalPath(req.FolderPath, thumbLogicalName)
 		}
 	}
 
@@ -166,6 +169,13 @@ func (a *RainyunAdapter) Upload(ctx context.Context, req *UploadRequest) (*Uploa
 		Hash:           hash,
 		ContentType:    a.getContentType(format),
 		Format:         format,
+		ThumbnailGenerationFailed: thumbnailErr != nil,
+		ThumbnailFailureReason: func() string {
+			if thumbnailErr != nil {
+				return thumbnailErr.Error()
+			}
+			return ""
+		}(),
 	}
 
 	return result, nil
@@ -368,33 +378,6 @@ func (a *RainyunAdapter) uploadToRainyun(dataBytes []byte, objectPath, contentTy
 	}, nil
 }
 
-// generateThumbnail 生成缩略图 (与COS/OSS保持一致)
-func (a *RainyunAdapter) generateThumbnail(src io.Reader, req *UploadRequest, originalPath string) (string, string, string, error) {
-	// 重新打开源文件进行缩略图处理
-	srcFile, err := req.File.Open()
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to reopen source file: %w", err)
-	}
-	defer srcFile.Close()
-
-	data, err := iox.ReadAllWithLimit(srcFile, iox.DefaultMaxReadBytes)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to read source data: %w", err)
-	}
-
-	thumbBytes, thumbFormat := buildThumbnailBytes(data, req)
-
-	// 保存缩略图到 Rainyun
-	thumbFileName := utils.MakeThumbName(filepath.Base(originalPath), thumbFormat)
-	thumbObjectPath, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbFileName)
-
-	thumbUploadResult, err := a.uploadToRainyun(thumbBytes, thumbObjectPath, formats.GetContentType(thumbFormat))
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to upload thumbnail: %w", err)
-	}
-
-	return thumbObjectPath, thumbUploadResult.URL, thumbUploadResult.URL, nil
-}
 
 // calculateDataHash 计算数据哈希值
 // removed calculateDataHash: simplified to md5.Sum on []byte

@@ -100,15 +100,19 @@ func (a *FTPAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadRes
 	}
 
 	var tpath, tlogical, tDirect string
+	var thumbnailErr error
 	if req.Options != nil && req.Options.GenerateThumb {
-		tb, tf := buildThumbnailBytes(original, req)
-		tname := utils.MakeThumbName(req.FileName, tf)
-		tkey, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, tname)
-		if err := a.ftpStore(ctx, a.fullPath(tkey), tb); err == nil {
-			tpath = tkey
-			tlogical = utils.BuildLogicalPath(req.FolderPath, tname)
-			if u, _ := a.GetURL(tkey, nil); u != "" {
-				tDirect = u
+		// 使用 getThumbnailData 获取缩略图数据（优先使用预生成的，否则自动生成）
+		tb, tf, _ := getThumbnailData(req, original)
+		if len(tb) > 0 {
+			tname := utils.MakeThumbName(req.FileName, tf)
+			tkey, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, tname)
+			if thumbnailErr = a.ftpStore(ctx, a.fullPath(tkey), tb); thumbnailErr == nil {
+				tpath = tkey
+				tlogical = utils.BuildLogicalPath(req.FolderPath, tname)
+				if u, _ := a.GetURL(tkey, nil); u != "" {
+					tDirect = u
+				}
 			}
 		}
 	}
@@ -130,6 +134,13 @@ func (a *FTPAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadRes
 		Hash:           fmt.Sprintf("%x", sum),
 		ContentType:    formats.GetContentType(format),
 		Format:         format,
+		ThumbnailGenerationFailed: thumbnailErr != nil,
+		ThumbnailFailureReason: func() string {
+			if thumbnailErr != nil {
+				return thumbnailErr.Error()
+			}
+			return ""
+		}(),
 	}, nil
 }
 

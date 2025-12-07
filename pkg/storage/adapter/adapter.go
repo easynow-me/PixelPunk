@@ -37,6 +37,9 @@ type UploadRequest struct {
 	FileName      string                // 文件名
 	ContentType   string                // 内容类型
 	Options       *UploadOptions        // 上传选项
+	// 预生成的缩略图数据（由外部统一生成，适配器只负责上传）
+	ThumbnailData   []byte // 缩略图数据
+	ThumbnailFormat string // 缩略图格式 (jpg, png, webp)
 }
 
 // UploadOptions 上传选项

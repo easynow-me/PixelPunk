@@ -7,7 +7,6 @@ import (
 	"fmt"
 	"io"
 	"net/url"
-	"path/filepath"
 	"strings"
 
 	"pixelpunk/pkg/imagex/formats"
@@ -149,15 +148,25 @@ func (a *QiniuAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadR
 
 	// thumbnail (optional)
 	var thumbnailPath, thumbnailURL, thumbRemoteDirect string
+	var thumbnailErr error
 	if req.Options != nil && req.Options.GenerateThumb {
-		if tpath, _, remote, err := a.generateThumbnail(bytes.NewReader(data), req, objectPath); err == nil {
-			thumbnailPath = tpath
-			tf := "jpg"
-			if ext := filepath.Ext(tpath); ext != "" {
-				tf = strings.TrimPrefix(strings.ToLower(ext), ".")
+		// 使用 getThumbnailData 获取缩略图数据（优先使用预生成的，否则自动生成）
+		thumbBytes, thumbFormat, _ := getThumbnailData(req, data)
+		if len(thumbBytes) > 0 {
+			thumbFileName := utils.MakeThumbName(originalFileName, thumbFormat)
+			thumbObjectPath, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbFileName)
+
+			_, thumbnailErr = a.client.PutObject(ctx, &s3.PutObjectInput{
+				Bucket:      aws.String(a.bucket),
+				Key:         aws.String(thumbObjectPath),
+				Body:        bytes.NewReader(thumbBytes),
+				ContentType: aws.String(formats.GetContentType(thumbFormat)),
+			})
+			if thumbnailErr == nil {
+				thumbnailPath = thumbObjectPath
+				thumbnailURL = utils.BuildLogicalPath(req.FolderPath, thumbFileName)
+				thumbRemoteDirect, _ = a.GetURL(thumbObjectPath, nil)
 			}
-			thumbnailURL = utils.BuildLogicalPath(req.FolderPath, utils.MakeThumbName(originalFileName, tf))
-			thumbRemoteDirect = remote
 		}
 	}
 
@@ -178,6 +187,13 @@ func (a *QiniuAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadR
 		Hash:           hash,
 		ContentType:    a.getContentType(format),
 		Format:         format,
+		ThumbnailGenerationFailed: thumbnailErr != nil,
+		ThumbnailFailureReason: func() string {
+			if thumbnailErr != nil {
+				return thumbnailErr.Error()
+			}
+			return ""
+		}(),
 	}, nil
 }
 
@@ -244,26 +260,6 @@ func (a *QiniuAdapter) ReadFile(ctx context.Context, path string) (io.ReadCloser
 	return resp.Body, nil
 }
 
-// generateThumbnail 与 R2 类似
-func (a *QiniuAdapter) generateThumbnail(src io.Reader, req *UploadRequest, originalPath string) (string, string, string, error) {
-	srcFile, err := req.File.Open()
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to reopen source file: %w", err)
-	}
-	defer srcFile.Close()
-	data, err := iox.ReadAllWithLimit(srcFile, iox.DefaultMaxReadBytes)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to read source data: %w", err)
-	}
-	thumbBytes, thumbFormat := buildThumbnailBytes(data, req)
-	thumbFileName := utils.MakeThumbName(filepath.Base(originalPath), thumbFormat)
-	thumbObjectPath, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbFileName)
-	if _, err := a.client.PutObject(context.Background(), &s3.PutObjectInput{Bucket: aws.String(a.bucket), Key: aws.String(thumbObjectPath), Body: bytes.NewReader(thumbBytes), ContentType: aws.String(formats.GetContentType(thumbFormat))}); err != nil {
-		return "", "", "", fmt.Errorf("failed to upload thumbnail: %w", err)
-	}
-	url, _ := a.GetURL(thumbObjectPath, nil)
-	return thumbObjectPath, url, url, nil
-}
 
 // Exists 检查对象存在
 func (a *QiniuAdapter) Exists(ctx context.Context, path string) (bool, error) {

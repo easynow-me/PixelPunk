@@ -94,15 +94,19 @@ func (a *WebDAVAdapter) Upload(ctx context.Context, req *UploadRequest) (*Upload
 
 	// thumbnail optional
 	var thumbPath, thumbLogical, thumbDirect string
+	var thumbnailErr error
 	if req.Options != nil && req.Options.GenerateThumb {
-		tb, tf := buildThumbnailBytes(original, req)
-		thumbName := utils.MakeThumbName(req.FileName, tf)
-		thumbKey, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbName)
-		if err := a.webdavPut(ctx, a.fullKey(thumbKey), tb, formats.GetContentType(tf)); err == nil {
-			thumbPath = thumbKey
-			thumbLogical = utils.BuildLogicalPath(req.FolderPath, thumbName)
-			if u, _ := a.GetURL(thumbKey, nil); u != "" {
-				thumbDirect = u
+		// 使用 getThumbnailData 获取缩略图数据（优先使用预生成的，否则自动生成）
+		tb, tf, _ := getThumbnailData(req, original)
+		if len(tb) > 0 {
+			thumbName := utils.MakeThumbName(req.FileName, tf)
+			thumbKey, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbName)
+			if thumbnailErr = a.webdavPut(ctx, a.fullKey(thumbKey), tb, formats.GetContentType(tf)); thumbnailErr == nil {
+				thumbPath = thumbKey
+				thumbLogical = utils.BuildLogicalPath(req.FolderPath, thumbName)
+				if u, _ := a.GetURL(thumbKey, nil); u != "" {
+					thumbDirect = u
+				}
 			}
 		}
 	}
@@ -124,6 +128,13 @@ func (a *WebDAVAdapter) Upload(ctx context.Context, req *UploadRequest) (*Upload
 		Hash:           fmt.Sprintf("%x", sum),
 		ContentType:    a.getContentType(format),
 		Format:         format,
+		ThumbnailGenerationFailed: thumbnailErr != nil,
+		ThumbnailFailureReason: func() string {
+			if thumbnailErr != nil {
+				return thumbnailErr.Error()
+			}
+			return ""
+		}(),
 	}, nil
 }
 

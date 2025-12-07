@@ -18,7 +18,6 @@ import (
 	"pixelpunk/pkg/logger"
 	"pixelpunk/pkg/storage/config"
 	"pixelpunk/pkg/storage/middleware"
-	"pixelpunk/pkg/storage/pipeline"
 	"pixelpunk/pkg/storage/tenant"
 	"pixelpunk/pkg/storage/utils"
 
@@ -153,22 +152,33 @@ func (a *COSAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadRes
 	var thumbnailErr error
 
 	if req.Options != nil && req.Options.GenerateThumb {
-		thumbPath, _, thumbRemoteURL, err := a.generateThumbnail(src, req, objectPath)
-		if err != nil {
-			logger.Warn("COS storage: 缩略图生成失败: %v", err)
-			thumbnailErr = err
-		} else {
-			thumbnailPath = thumbPath
-			// 缩略图使用逻辑路径，格式与原图一致，添加_thumb后缀
-			// 获取缩略图的实际格式（从生成的缩略图路径推断）
-			thumbFormat := "jpg" // 默认格式
-			if ext := filepath.Ext(thumbPath); ext != "" {
-				thumbFormat = strings.TrimPrefix(strings.ToLower(ext), ".")
+		// 重新读取源数据用于缩略图生成
+		srcFile, err := req.File.Open()
+		if err == nil {
+			defer srcFile.Close()
+			sourceData, err := iox.ReadAllWithLimit(srcFile, iox.DefaultMaxReadBytes)
+			if err == nil {
+				// 使用 getThumbnailData 获取缩略图数据（优先使用预生成的，否则自动生成）
+				thumbBytes, thumbFormat, _ := getThumbnailData(req, sourceData)
+				if len(thumbBytes) > 0 {
+					thumbFileName := utils.MakeThumbName(originalFileName, thumbFormat)
+					thumbObjectPath, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbFileName)
+
+					uploadResult, uploadErr := a.uploadToCOS(thumbBytes, thumbObjectPath, formats.GetContentType(thumbFormat))
+					if uploadErr == nil {
+						thumbnailPath = thumbObjectPath
+						thumbnailURL = utils.BuildLogicalPath(req.FolderPath, thumbFileName)
+						thumbRemoteDirect = uploadResult.URL
+					} else {
+						logger.Warn("[COS] 缩略图上传失败: %v", uploadErr)
+						thumbnailErr = uploadErr
+					}
+				}
+			} else {
+				thumbnailErr = err
 			}
-			thumbLogicalName := utils.MakeThumbName(originalFileName, thumbFormat)
-			thumbnailURL = utils.BuildLogicalPath(req.FolderPath, thumbLogicalName)
-			// 直链（含域名）仅用于响应返回；存库的 RemoteThumbURL 保存对象键
-			thumbRemoteDirect = thumbRemoteURL
+		} else {
+			thumbnailErr = err
 		}
 	}
 
@@ -361,59 +371,6 @@ func (a *COSAdapter) uploadToCOS(dataBytes []byte, objectPath, contentType strin
 	}, nil
 }
 
-// generateThumbnail 生成缩略图
-func (a *COSAdapter) generateThumbnail(src io.Reader, req *UploadRequest, originalPath string) (string, string, string, error) {
-	// 重新打开源文件进行缩略图处理
-	srcFile, err := req.File.Open()
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to reopen source file: %w", err)
-	}
-	defer srcFile.Close()
-
-	data, err := iox.ReadAllWithLimit(srcFile, iox.DefaultMaxReadBytes)
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to read source data: %w", err)
-	}
-
-	// SVG 特判：直接拷贝为缩略图
-	if strings.EqualFold(strings.TrimPrefix(strings.ToLower(filepath.Ext(req.FileName)), "."), "svg") {
-		thumbFileName := utils.MakeThumbName(req.FileName, "svg")
-		thumbObjectPath, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbFileName)
-		uploadResult, err := a.uploadToCOS(data, thumbObjectPath, "image/svg+xml")
-		if err != nil {
-			return "", "", "", fmt.Errorf("failed to upload thumbnail: %w", err)
-		}
-		thumbURL := thumbObjectPath
-		return thumbObjectPath, thumbURL, uploadResult.URL, nil
-	}
-
-	// 统一生成缩略图（带回退）
-	thumbQuality := 85
-	if req.Options.ThumbQuality > 0 {
-		thumbQuality = req.Options.ThumbQuality
-	}
-	targetW := 1200
-	targetH := 900
-	if req.Options.ThumbWidth > 0 {
-		targetW = req.Options.ThumbWidth
-	}
-	if req.Options.ThumbHeight > 0 {
-		targetH = req.Options.ThumbHeight
-	}
-	thumbBytes, thumbFormat, _ := pipeline.GenerateOrFallback(data, pipeline.Options{
-		Width: targetW, Height: targetH, Quality: thumbQuality, EnableWebP: true, FallbackOnError: true,
-	})
-
-	thumbFileName := utils.MakeThumbName(req.FileName, thumbFormat)
-	thumbObjectPath, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbFileName)
-
-	uploadResult, err := a.uploadToCOS(thumbBytes, thumbObjectPath, formats.GetContentType(thumbFormat))
-	if err != nil {
-		return "", "", "", fmt.Errorf("failed to upload thumbnail: %w", err)
-	}
-	thumbURL := thumbObjectPath
-	return thumbObjectPath, thumbURL, uploadResult.URL, nil
-}
 
 // getFileFormat 获取文件格式
 func (a *COSAdapter) getFileFormat(fileName string) string {

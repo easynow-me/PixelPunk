@@ -23,7 +23,6 @@ import (
 	"pixelpunk/pkg/imagex/iox"
 	"pixelpunk/pkg/logger"
 	"pixelpunk/pkg/storage/config"
-	"pixelpunk/pkg/storage/pipeline"
 	"pixelpunk/pkg/storage/tenant"
 	"pixelpunk/pkg/storage/utils"
 )
@@ -151,15 +150,19 @@ func (a *UpyunAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadR
 	}
 
 	var thumbPath, thumbLogical, thumbDirect string
+	var thumbnailErr error
 	if req.Options != nil && req.Options.GenerateThumb {
-		tbytes, tformat, _ := pipeline.GenerateOrFallback(processed, pipeline.Options{Width: max1(req.Options.ThumbWidth, 1200), Height: max1(req.Options.ThumbHeight, 900), Quality: max1(req.Options.ThumbQuality, 85), EnableWebP: true, FallbackOnError: true})
-		thumbName := utils.MakeThumbName(req.FileName, tformat)
-		thumbKey, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbName)
-		if err := a.restPut(ctx, thumbKey, tbytes, formats.GetContentType(tformat)); err == nil {
-			thumbPath = thumbKey
-			thumbLogical = utils.BuildLogicalPath(req.FolderPath, thumbName)
-			if u, _ := a.GetURL(thumbKey, nil); u != "" {
-				thumbDirect = u
+		// 使用 getThumbnailData 获取缩略图数据（优先使用预生成的，否则自动生成）
+		tbytes, tformat, _ := getThumbnailData(req, data)
+		if len(tbytes) > 0 {
+			thumbName := utils.MakeThumbName(req.FileName, tformat)
+			thumbKey, _ := tenant.BuildThumbObjectKey(req.UserID, req.FolderPath, thumbName)
+			if thumbnailErr = a.restPut(ctx, thumbKey, tbytes, formats.GetContentType(tformat)); thumbnailErr == nil {
+				thumbPath = thumbKey
+				thumbLogical = utils.BuildLogicalPath(req.FolderPath, thumbName)
+				if u, _ := a.GetURL(thumbKey, nil); u != "" {
+					thumbDirect = u
+				}
 			}
 		}
 	}
@@ -181,6 +184,13 @@ func (a *UpyunAdapter) Upload(ctx context.Context, req *UploadRequest) (*UploadR
 		Hash:           fmt.Sprintf("%x", sum),
 		ContentType:    a.getContentType(format),
 		Format:         format,
+		ThumbnailGenerationFailed: thumbnailErr != nil,
+		ThumbnailFailureReason: func() string {
+			if thumbnailErr != nil {
+				return thumbnailErr.Error()
+			}
+			return ""
+		}(),
 	}, nil
 }
 
